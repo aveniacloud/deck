@@ -88,6 +88,13 @@ The **Activity** allows you to see everything that happened in your boards. Ever
 
 ![Gif for board sidebar](resources/gifs/EN_board_sidebar.gif)
 
+#### Filter cards
+The filter button next to the search field narrows the board down to the cards you are interested in. You can filter by tag, by assigned user, by status and by due date, and combine these filters.
+
+When you select more than one tag, you can choose whether a card needs **all** of the selected tags or **any** of them to be shown. By default it needs all of them.
+
+The same choice is offered when you select more than one user: a card can be shown if it is assigned to **any** of the selected users, or only if it is assigned to **all** of them. By default any of them is enough.
+
 ### 7. Sharing boards
 You can share boards with a user, a group, or, if you are using the [Circles](https://apps.nextcloud.com/apps/circles) app, with a circle.
 

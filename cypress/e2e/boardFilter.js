@@ -23,6 +23,42 @@ const filterBoard = {
 	],
 }
 
+const tagBoard = {
+	title: 'TagFilterBoard',
+	color: '0000ff',
+	stacks: [
+		{
+			title: 'TestList',
+			cards: [
+				{ title: 'Finished and review', labels: ['Finished', 'To review'] },
+				{ title: 'Finished and action', labels: ['Finished', 'Action needed'] },
+				{ title: 'Review only', labels: ['To review'] },
+				{ title: 'No tags' },
+			],
+		},
+	],
+}
+
+const alice = randUser()
+const bob = randUser()
+
+const userBoard = {
+	title: 'UserFilterBoard',
+	color: '00ffff',
+	shareWith: [alice.userId, bob.userId],
+	stacks: [
+		{
+			title: 'TestList',
+			cards: [
+				{ title: 'Alice and Bob', assignedUsers: [alice.userId, bob.userId] },
+				{ title: 'Alice only', assignedUsers: [alice.userId] },
+				{ title: 'Bob only', assignedUsers: [bob.userId] },
+				{ title: 'Nobody' },
+			],
+		},
+	],
+}
+
 const otherBoard = {
 	title: 'UnrelatedBoard',
 	color: 'ff0000',
@@ -31,12 +67,22 @@ const otherBoard = {
 
 describe('Board filter', function() {
 	let boardId
+	let tagBoardId
+	let userBoardId
 
 	before(function() {
 		cy.createUser(user)
+		cy.createUser(alice)
+		cy.createUser(bob)
 		cy.login(user)
 		cy.createExampleBoard({ user, board: filterBoard }).then((board) => {
 			boardId = board.id
+		})
+		cy.createExampleBoard({ user, board: tagBoard }).then((board) => {
+			tagBoardId = board.id
+		})
+		cy.createExampleBoard({ user, board: userBoard }).then((board) => {
+			userBoardId = board.id
 		})
 		cy.createExampleBoard({ user, board: otherBoard })
 	})
@@ -79,6 +125,96 @@ describe('Board filter', function() {
 			cy.get('body').type('{ctrl}f')
 
 			cy.get('#deck-search-input').should('exist')
+		})
+	})
+
+	describe('By tag', function() {
+		beforeEach(function() {
+			cy.login(user)
+			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
+			cy.get('.board .card').should('have.length', 4)
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('.filter label:contains("Finished")').click()
+		})
+
+		it('Only offers a match mode once two tags are selected', function() {
+			cy.get('#filter-option-tags-any').should('not.exist')
+
+			cy.get('.filter label:contains("To review")').click()
+
+			cy.get('#filter-option-tags-all').should('be.checked')
+		})
+
+		it('Requires all selected tags by default', function() {
+			cy.get('.filter label:contains("To review")').click()
+
+			cy.get('.board .card').should('have.length', 1)
+			cy.get('.board .card:contains("Finished and review")').should('be.visible')
+		})
+
+		it('Shows cards with any selected tag when switched', function() {
+			cy.get('.filter label:contains("To review")').click()
+			cy.get('label[for="filter-option-tags-any"]').click()
+
+			cy.get('.board .card').should('have.length', 3)
+			cy.get('.board .card:contains("No tags")').should('not.exist')
+		})
+
+		it('Resets the match mode when the filter is cleared', function() {
+			cy.get('.filter label:contains("To review")').click()
+			cy.get('label[for="filter-option-tags-any"]').click()
+
+			cy.get('.filter button:contains("Clear filter")').click()
+			cy.get('.board .card').should('have.length', 4)
+			cy.get('.filter label:contains("Finished")').click()
+			cy.get('.filter label:contains("To review")').click()
+
+			cy.get('#filter-option-tags-all').should('be.checked')
+		})
+	})
+
+	describe('By assigned user', function() {
+		beforeEach(function() {
+			cy.login(user)
+			cy.visit(`/apps/deck/#/board/${userBoardId}`)
+			cy.get('.board .card').should('have.length', 4)
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get(`label[for="${alice.userId}"]`).click()
+		})
+
+		it('Only offers a match mode once two users are selected', function() {
+			cy.get('#filter-option-users-all').should('not.exist')
+
+			cy.get(`label[for="${bob.userId}"]`).click()
+
+			cy.get('#filter-option-users-any').should('be.checked')
+		})
+
+		it('Shows cards assigned to any selected user by default', function() {
+			cy.get(`label[for="${bob.userId}"]`).click()
+
+			cy.get('.board .card').should('have.length', 3)
+			cy.get('.board .card:contains("Nobody")').should('not.exist')
+		})
+
+		it('Requires all selected users when switched', function() {
+			cy.get(`label[for="${bob.userId}"]`).click()
+			cy.get('label[for="filter-option-users-all"]').click()
+
+			cy.get('.board .card').should('have.length', 1)
+			cy.get('.board .card:contains("Alice and Bob")').should('be.visible')
+		})
+
+		it('Resets the match mode when the filter is cleared', function() {
+			cy.get(`label[for="${bob.userId}"]`).click()
+			cy.get('label[for="filter-option-users-all"]').click()
+
+			cy.get('.filter button:contains("Clear filter")').click()
+			cy.get('.board .card').should('have.length', 4)
+			cy.get(`label[for="${alice.userId}"]`).click()
+			cy.get(`label[for="${bob.userId}"]`).click()
+
+			cy.get('#filter-option-users-any').should('be.checked')
 		})
 	})
 

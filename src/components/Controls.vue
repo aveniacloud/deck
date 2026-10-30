@@ -118,6 +118,28 @@
 										@change="setFilter">
 									<label :for="label.id"><span class="label" :style="labelStyle(label)">{{ label.title }}</span></label>
 								</div>
+								<div v-if="filter.tags.length > 1" class="filter--match">
+									<div class="filter--item">
+										<input
+											id="filter-option-tags-all"
+											v-model="filter.tagMatch"
+											type="radio"
+											class="radio"
+											value="all"
+											@change="setFilter">
+										<label for="filter-option-tags-all">{{ t('deck', 'Cards with all selected tags') }}</label>
+									</div>
+									<div class="filter--item">
+										<input
+											id="filter-option-tags-any"
+											v-model="filter.tagMatch"
+											type="radio"
+											class="radio"
+											value="any"
+											@change="setFilter">
+										<label for="filter-option-tags-any">{{ t('deck', 'Cards with any selected tag') }}</label>
+									</div>
+								</div>
 
 								<h3>{{ t('deck', 'Filter by assigned user') }}</h3>
 								<div class="filter--item">
@@ -144,6 +166,28 @@
 										:size="24"
 										:disableMenu="true"
 										:hideStatus="true" /> {{ user.displayname }}</label>
+								</div>
+								<div v-if="filter.users.length > 1" class="filter--match">
+									<div class="filter--item">
+										<input
+											id="filter-option-users-any"
+											v-model="filter.userMatch"
+											type="radio"
+											class="radio"
+											value="any"
+											@change="setFilter">
+										<label for="filter-option-users-any">{{ t('deck', 'Cards assigned to any selected user') }}</label>
+									</div>
+									<div class="filter--item">
+										<input
+											id="filter-option-users-all"
+											v-model="filter.userMatch"
+											type="radio"
+											class="radio"
+											value="all"
+											@change="setFilter">
+										<label for="filter-option-users-all">{{ t('deck', 'Cards assigned to all selected users') }}</label>
+									</div>
 								</div>
 
 								<h3>{{ t('deck', 'Filter by status') }}</h3>
@@ -401,7 +445,7 @@ export default {
 			newStackTitle: '',
 			stack: '',
 			isAddStackVisible: false,
-			filter: { tags: [], users: [], due: '', unassigned: false, completed: 'both' },
+			filter: { tags: [], tagMatch: 'all', users: [], userMatch: 'any', due: '', unassigned: false, completed: 'both' },
 			showAddCardModal: false,
 			defaultPageTitle: false,
 			isNotifyPushEnabled: isNotifyPushEnabled(),
@@ -567,7 +611,7 @@ export default {
 		},
 
 		clearFilter() {
-			const filterReset = { tags: [], users: [], due: '', unassigned: false, completed: 'both' }
+			const filterReset = { tags: [], tagMatch: 'all', users: [], userMatch: 'any', due: '', unassigned: false, completed: 'both' }
 			this.setFilterInStore({ ...filterReset })
 			this.filter = filterReset
 		},
@@ -739,6 +783,12 @@ export default {
 		position: relative;
 		overflow: auto;
 		padding: 8px;
+	}
+
+	.filter--match {
+		margin: var(--default-grid-baseline) 0 calc(2 * var(--default-grid-baseline));
+		padding-inline-start: var(--default-grid-baseline);
+		border-inline-start: 2px solid var(--color-border);
 	}
 
 	.filter h3 {
