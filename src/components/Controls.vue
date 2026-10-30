@@ -108,7 +108,11 @@
 						<template #default>
 							<div class="filter">
 								<h3>{{ t('deck', 'Filter by tag') }}</h3>
-								<div v-for="label in labelsSorted" :key="label.id" class="filter--item">
+								<div
+									v-for="label in labelsSorted"
+									:key="label.id"
+									class="filter--item filter--item-excludable"
+									:class="{ 'filter--item-excluded': filter.excludedTags.includes(label.id) }">
 									<input
 										:id="label.id"
 										v-model="filter.tags"
@@ -117,6 +121,18 @@
 										:value="label.id"
 										@change="setFilter">
 									<label :for="label.id"><span class="label" :style="labelStyle(label)">{{ label.title }}</span></label>
+									<NcButton
+										variant="tertiary"
+										size="small"
+										:pressed="filter.excludedTags.includes(label.id)"
+										:aria-label="t('deck', 'Hide cards with tag {tag}', { tag: label.title })"
+										:title="t('deck', 'Hide cards with this tag')"
+										@update:pressed="toggleExcluded('excludedTags', 'tags', label.id)">
+										<template #icon>
+											<MinusCircleIcon v-if="filter.excludedTags.includes(label.id)" :size="18" />
+											<MinusCircleOutlineIcon v-else :size="18" />
+										</template>
+									</NcButton>
 								</div>
 								<div v-if="filter.tags.length > 1" class="filter--match">
 									<div class="filter--item">
@@ -153,7 +169,11 @@
 										@click="beforeSetFilter">
 									<label for="unassigned">{{ t('deck', 'Unassigned') }}</label>
 								</div>
-								<div v-for="user in board.users" :key="user.uid" class="filter--item">
+								<div
+									v-for="user in board.users"
+									:key="user.uid"
+									class="filter--item filter--item-excludable"
+									:class="{ 'filter--item-excluded': filter.excludedUsers.includes(user.uid) }">
 									<input
 										:id="user.uid"
 										v-model="filter.users"
@@ -166,6 +186,18 @@
 										:size="24"
 										:disableMenu="true"
 										:hideStatus="true" /> {{ user.displayname }}</label>
+									<NcButton
+										variant="tertiary"
+										size="small"
+										:pressed="filter.excludedUsers.includes(user.uid)"
+										:aria-label="t('deck', 'Hide cards assigned to {user}', { user: user.displayname })"
+										:title="t('deck', 'Hide cards assigned to this user')"
+										@update:pressed="toggleExcluded('excludedUsers', 'users', user.uid)">
+										<template #icon>
+											<MinusCircleIcon v-if="filter.excludedUsers.includes(user.uid)" :size="18" />
+											<MinusCircleOutlineIcon v-else :size="18" />
+										</template>
+									</NcButton>
 								</div>
 								<div v-if="filter.users.length > 1" class="filter--match">
 									<div class="filter--item">
@@ -388,6 +420,8 @@ import ChartGanttIcon from 'vue-material-design-icons/ChartGantt.vue'
 import FilterOffIcon from 'vue-material-design-icons/FilterOffOutline.vue'
 import FilterIcon from 'vue-material-design-icons/FilterOutline.vue'
 import ImageIcon from 'vue-material-design-icons/ImageMultipleOutline.vue'
+import MinusCircleIcon from 'vue-material-design-icons/MinusCircle.vue'
+import MinusCircleOutlineIcon from 'vue-material-design-icons/MinusCircleOutline.vue'
 import TableColumnPlusAfter from 'vue-material-design-icons/TableColumnPlusAfter.vue'
 import ViewColumnIcon from 'vue-material-design-icons/ViewColumn.vue'
 import CreateNewCardCustomPicker from '../views/CreateNewCardCustomPicker.vue'
@@ -415,6 +449,8 @@ export default {
 		ImageIcon,
 		FilterIcon,
 		FilterOffIcon,
+		MinusCircleIcon,
+		MinusCircleOutlineIcon,
 		ArrowCollapseVerticalIcon,
 		ArrowExpandVerticalIcon,
 		ViewColumnIcon,
@@ -465,7 +501,7 @@ export default {
 			newStackTitle: '',
 			stack: '',
 			isAddStackVisible: false,
-			filter: { tags: [], tagMatch: 'all', users: [], userMatch: 'any', due: '', dueFrom: '', dueTo: '', unassigned: false, completed: 'both' },
+			filter: { tags: [], tagMatch: 'all', excludedTags: [], users: [], userMatch: 'any', excludedUsers: [], due: '', dueFrom: '', dueTo: '', unassigned: false, completed: 'both' },
 			showAddCardModal: false,
 			defaultPageTitle: false,
 			isNotifyPushEnabled: isNotifyPushEnabled(),
@@ -516,7 +552,7 @@ export default {
 		},
 
 		isFilterActive() {
-			return this.filter.tags.length !== 0 || this.filter.users.length !== 0 || this.filter.due !== '' || this.filter.completed !== 'both'
+			return this.filter.tags.length !== 0 || this.filter.users.length !== 0 || this.filter.excludedTags.length !== 0 || this.filter.excludedUsers.length !== 0 || this.filter.due !== '' || this.filter.completed !== 'both'
 		},
 
 		labelsSorted() {
@@ -592,6 +628,9 @@ export default {
 			if (this.filter.users.length > 0) {
 				this.filter.unassigned = false
 			}
+			// selecting an entry takes it out of the excluded ones
+			this.filter.excludedTags = this.filter.excludedTags.filter((id) => !this.filter.tags.includes(id))
+			this.filter.excludedUsers = this.filter.excludedUsers.filter((uid) => !this.filter.users.includes(uid))
 			this.$nextTick(() => this.setFilterInStore({ ...this.filter }))
 		},
 
@@ -605,6 +644,17 @@ export default {
 				}
 				this.setFilterInStore({ ...this.filter })
 			})
+		},
+
+		toggleExcluded(excludedKey, selectedKey, value) {
+			const excluded = this.filter[excludedKey]
+			if (excluded.includes(value)) {
+				this.filter[excludedKey] = excluded.filter((v) => v !== value)
+			} else {
+				this.filter[excludedKey] = [...excluded, value]
+				this.filter[selectedKey] = this.filter[selectedKey].filter((v) => v !== value)
+			}
+			this.setFilterInStore({ ...this.filter })
 		},
 
 		updateDueRange({ from, to }) {
@@ -658,7 +708,7 @@ export default {
 		},
 
 		clearFilter() {
-			const filterReset = { tags: [], tagMatch: 'all', users: [], userMatch: 'any', due: '', dueFrom: '', dueTo: '', unassigned: false, completed: 'both' }
+			const filterReset = { tags: [], tagMatch: 'all', excludedTags: [], users: [], userMatch: 'any', excludedUsers: [], due: '', dueFrom: '', dueTo: '', unassigned: false, completed: 'both' }
 			this.setFilterInStore({ ...filterReset })
 			this.filter = filterReset
 		},
@@ -830,6 +880,21 @@ export default {
 		position: relative;
 		overflow: auto;
 		padding: 8px;
+	}
+
+	.filter--item-excludable {
+		display: flex;
+		align-items: center;
+
+		input + label {
+			flex: 1;
+			min-width: 0;
+		}
+	}
+
+	.filter--item-excluded input + label {
+		text-decoration: line-through;
+		opacity: .7;
 	}
 
 	.filter--match {

@@ -20,13 +20,20 @@ export const useCardStore = defineStore('card', {
 	getters: {
 		cardsByStack(state) {
 			return (id) => state.cards.filter((card) => {
-				const { tags, tagMatch, users, userMatch, due, dueFrom, dueTo, unassigned, completed } = useBoardStore().filter
+				const { tags, tagMatch, excludedTags = [], users, userMatch, excludedUsers = [], due, dueFrom, dueTo, unassigned, completed } = useBoardStore().filter
 				if (completed === 'open' && card.done !== null) {
 					return false
 				}
 				if (completed === 'completed' && !card.done) {
 					return false
 				}
+				if (card.labels.some((l) => excludedTags.includes(l.id))) {
+					return false
+				}
+				if (card.assignedUsers?.some((u) => excludedUsers.includes(u.participant.uid))) {
+					return false
+				}
+
 				if (tags.length > 0) {
 					const hasTag = (tag) => card.labels.findIndex((l) => l.id === tag) !== -1
 					const tagsMatch = tagMatch === 'any' ? tags.some(hasTag) : tags.every(hasTag)

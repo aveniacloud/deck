@@ -267,6 +267,51 @@ describe('Board filter', function() {
 		})
 	})
 
+	describe('Hiding tags and users', function() {
+		it('Hides cards that carry a hidden tag', function() {
+			cy.login(user)
+			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
+			cy.get('.board .card').should('have.length', 4)
+			cy.get('[aria-label="Apply filter"]').click()
+
+			cy.get('[aria-label="Hide cards with tag Finished"]').click()
+
+			cy.get('.board .card').should('have.length', 2)
+			cy.get('.board .card:contains("Review only")').should('be.visible')
+			cy.get('.board .card:contains("No tags")').should('be.visible')
+			cy.get('.filter-button').should('have.class', 'button-vue--primary')
+		})
+
+		it('Hides cards assigned to a hidden user', function() {
+			cy.login(user)
+			cy.visit(`/apps/deck/#/board/${userBoardId}`)
+			cy.get('.board .card').should('have.length', 4)
+			cy.get('[aria-label="Apply filter"]').click()
+
+			cy.get(`[aria-label="Hide cards assigned to ${bob.userId}"]`).click()
+
+			cy.get('.board .card').should('have.length', 2)
+			cy.get('.board .card:contains("Alice only")').should('be.visible')
+			cy.get('.board .card:contains("Nobody")').should('be.visible')
+		})
+
+		it('Selecting a hidden tag shows its cards again', function() {
+			cy.login(user)
+			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
+			cy.get('.board .card').should('have.length', 4)
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('[aria-label="Hide cards with tag Finished"]').click()
+			cy.get('.board .card').should('have.length', 2)
+
+			cy.get('.filter label:contains("Finished")').click()
+
+			cy.get('[aria-label="Hide cards with tag Finished"]').should('have.attr', 'aria-pressed', 'false')
+			cy.get('.board .card').should('have.length', 2)
+			cy.get('.board .card:contains("Finished and review")').should('be.visible')
+			cy.get('.board .card:contains("Finished and action")').should('be.visible')
+		})
+	})
+
 	describe('By due date', function() {
 		beforeEach(function() {
 			cy.login(user)

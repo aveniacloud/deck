@@ -95,6 +95,8 @@ When you select more than one tag, you can choose whether a card needs **all** o
 
 The same choice is offered when you select more than one user: a card can be shown if it is assigned to **any** of the selected users, or only if it is assigned to **all** of them. By default any of them is enough.
 
+To leave cards out instead, use the minus button at the end of a tag or user. Cards carrying that tag, or assigned to that user, are hidden, whatever else is selected. Click the button again, or select the tag or user, to stop hiding them.
+
 Besides the fixed periods (overdue, the next 24 hours, 7 days or 30 days, or no due date), the due date filter offers:
 
 - **Calendar week**: cards due in one calendar week, Monday to Sunday. It starts at the current week; use the arrows to move to earlier or later weeks.
