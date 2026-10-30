@@ -103,6 +103,14 @@ Cypress.Commands.add('createExampleBoard', ({ user, board }) => {
 								body: { labelId: label.id },
 							})
 						}
+						if (card.duedate) {
+							cy.request({
+								method: 'PUT',
+								url: `${Cypress.expose('baseUrl')}/index.php/apps/deck/api/v1.0/boards/${boardData.id}/stacks/${stackData.id}/cards/${cardResponse.body.id}`,
+								auth,
+								body: { title: card.title, type: 'plain', owner: user.userId, description: card.description ?? '', order: cardResponse.body.order, duedate: card.duedate },
+							})
+						}
 						for (const userId of card.assignedUsers ?? []) {
 							cy.request({
 								method: 'PUT',

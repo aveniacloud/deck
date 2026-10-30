@@ -59,9 +59,9 @@ export const useCardStore = defineStore('card', {
 						case 'dueToday':
 							return (card.overdue >= 2)
 						case 'dueWeek':
-							return (datediffHour <= 7 * 24 && card.duedate !== null)
+							return (datediffHour > 0 && datediffHour <= 7 * 24 && card.duedate !== null)
 						case 'dueMonth':
-							return (datediffHour <= 30 * 24 && card.duedate !== null)
+							return (datediffHour > 0 && datediffHour <= 30 * 24 && card.duedate !== null)
 					}
 				}
 
@@ -134,7 +134,14 @@ export const useCardStore = defineStore('card', {
 									break
 							}
 
-							if (card.duedate === null || !hasMatch) {
+							// keywords are complete conditions, not dates to compare against
+							if (['overdue', 'today', 'week', 'month', 'none'].includes(query)) {
+								if (!hasMatch) {
+									return false
+								}
+								continue
+							}
+							if (card.duedate === null) {
 								return false
 							}
 							const comparator = query[0] + (query[1] === '=' ? '=' : '')

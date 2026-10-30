@@ -59,6 +59,26 @@ const userBoard = {
 	],
 }
 
+const inHours = (hours) => new Date(Date.now() + hours * 3600 * 1000).toISOString()
+
+const dateBoard = {
+	title: 'DateFilterBoard',
+	color: 'ff00ff',
+	stacks: [
+		{
+			title: 'TestList',
+			cards: [
+				{ title: 'Overdue', duedate: inHours(-24) },
+				{ title: 'In three hours', duedate: inHours(3) },
+				{ title: 'In five days', duedate: inHours(5 * 24) },
+				{ title: 'In twenty days', duedate: inHours(20 * 24) },
+				{ title: 'In fifty days', duedate: inHours(50 * 24) },
+				{ title: 'Undated' },
+			],
+		},
+	],
+}
+
 const otherBoard = {
 	title: 'UnrelatedBoard',
 	color: 'ff0000',
@@ -69,6 +89,7 @@ describe('Board filter', function() {
 	let boardId
 	let tagBoardId
 	let userBoardId
+	let dateBoardId
 
 	before(function() {
 		cy.createUser(user)
@@ -83,6 +104,9 @@ describe('Board filter', function() {
 		})
 		cy.createExampleBoard({ user, board: userBoard }).then((board) => {
 			userBoardId = board.id
+		})
+		cy.createExampleBoard({ user, board: dateBoard }).then((board) => {
+			dateBoardId = board.id
 		})
 		cy.createExampleBoard({ user, board: otherBoard })
 	})
@@ -215,6 +239,48 @@ describe('Board filter', function() {
 			cy.get(`label[for="${bob.userId}"]`).click()
 
 			cy.get('#filter-option-users-any').should('be.checked')
+		})
+	})
+
+	describe('By due date', function() {
+		beforeEach(function() {
+			cy.login(user)
+			cy.visit(`/apps/deck/#/board/${dateBoardId}`)
+			cy.get('.board .card').should('have.length', 6)
+		})
+
+		it('Leaves overdue cards out of the next 7 days', function() {
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('label[for="dueWeek"]').click()
+
+			cy.get('.board .card').should('have.length', 2)
+			cy.get('.board .card:contains("Overdue")').should('not.exist')
+		})
+
+		it('Leaves overdue cards out of the next 30 days', function() {
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('label[for="dueMonth"]').click()
+
+			cy.get('.board .card').should('have.length', 3)
+			cy.get('.board .card:contains("Overdue")').should('not.exist')
+		})
+
+		it('Supports the date: keywords in the search', function() {
+			const expected = {
+				'date:overdue': ['Overdue'],
+				'date:today': ['In three hours'],
+				'date:week': ['In three hours', 'In five days'],
+				'date:month': ['In three hours', 'In five days', 'In twenty days'],
+				'date:none': ['Undated'],
+			}
+			for (const [query, titles] of Object.entries(expected)) {
+				cy.get('#deck-search-input').clear()
+				cy.get('#deck-search-input').type(query)
+				cy.get('.board .card').should('have.length', titles.length)
+				for (const title of titles) {
+					cy.get(`.board .card:contains("${title}")`).should('be.visible')
+				}
+			}
 		})
 	})
 
