@@ -107,6 +107,30 @@
 
 						<template #default>
 							<div class="filter">
+								<template v-if="savedFilters.length > 0">
+									<h3>{{ t('deck', 'Saved filters') }}</h3>
+									<div v-for="(saved, index) in savedFilters" :key="saved.name" class="filter--saved">
+										<NcButton
+											variant="tertiary"
+											alignment="start"
+											:wide="true"
+											@click="applySavedFilter(saved)">
+											{{ saved.name }}
+										</NcButton>
+										<NcButton
+											v-if="canEdit"
+											variant="tertiary"
+											size="small"
+											:aria-label="t('deck', 'Delete saved filter {name}', { name: saved.name })"
+											:title="t('deck', 'Delete saved filter')"
+											@click="deleteSavedFilter(index)">
+											<template #icon>
+												<TrashIcon :size="18" />
+											</template>
+										</NcButton>
+									</div>
+								</template>
+
 								<h3>{{ t('deck', 'Filter by tag') }}</h3>
 								<div
 									v-for="label in labelsSorted"
@@ -337,6 +361,27 @@
 									<label for="noDue">{{ t('deck', 'No due date') }}</label>
 								</div>
 
+								<form v-if="isSavingFilter" class="filter--save" @submit.prevent="saveFilter">
+									<NcTextField
+										v-model="savedFilterName"
+										:label="t('deck', 'Name of the filter')"
+										:maxlength="100" />
+									<div class="filter--save-actions">
+										<NcButton variant="tertiary" @click="cancelSaveFilter">
+											{{ t('deck', 'Cancel') }}
+										</NcButton>
+										<NcButton type="submit" variant="primary" :disabled="savedFilterName.trim() === ''">
+											{{ t('deck', 'Save') }}
+										</NcButton>
+									</div>
+								</form>
+								<NcButton
+									v-else-if="canEdit"
+									:disabled="!isFilterActive"
+									:wide="true"
+									@click="isSavingFilter = true">
+									{{ t('deck', 'Save filter …') }}
+								</NcButton>
 								<NcButton :disabled="!isFilterActive" :wide="true" @click="clearFilter">
 									{{ t('deck', 'Clear filter') }}
 								</NcButton>
@@ -409,6 +454,7 @@
 
 <script>
 import { getCurrentUser } from '@nextcloud/auth'
+import { showError } from '@nextcloud/dialogs'
 import { subscribe, unsubscribe } from '@nextcloud/event-bus'
 import { NcActionButton, NcActions, NcActionSeparator, NcAvatar, NcButton, NcModal, NcPopover, NcTextField } from '@nextcloud/vue'
 import { vOnClickOutside } from '@vueuse/components'
@@ -423,6 +469,7 @@ import ImageIcon from 'vue-material-design-icons/ImageMultipleOutline.vue'
 import MinusCircleIcon from 'vue-material-design-icons/MinusCircle.vue'
 import MinusCircleOutlineIcon from 'vue-material-design-icons/MinusCircleOutline.vue'
 import TableColumnPlusAfter from 'vue-material-design-icons/TableColumnPlusAfter.vue'
+import TrashIcon from 'vue-material-design-icons/TrashCanOutline.vue'
 import ViewColumnIcon from 'vue-material-design-icons/ViewColumn.vue'
 import CreateNewCardCustomPicker from '../views/CreateNewCardCustomPicker.vue'
 import DueDateRangeFilter, { periodAround } from './DueDateRangeFilter.vue'
@@ -457,6 +504,7 @@ export default {
 		ChartGanttIcon,
 		NcActionSeparator,
 		TableColumnPlusAfter,
+		TrashIcon,
 		SessionList,
 		DueDateRangeFilter,
 	},
@@ -503,6 +551,10 @@ export default {
 			isAddStackVisible: false,
 			filter: { tags: [], tagMatch: 'all', excludedTags: [], users: [], userMatch: 'any', excludedUsers: [], due: '', dueFrom: '', dueTo: '', unassigned: false, completed: 'both' },
 			showAddCardModal: false,
+			isSavingFilter: false,
+			savedFilterName: '',
+			// saved filters as last stored, until another board is opened
+			savedFiltersLocal: null,
 			defaultPageTitle: false,
 			isNotifyPushEnabled: isNotifyPushEnabled(),
 		}
@@ -539,6 +591,10 @@ export default {
 			}
 		},
 
+		savedFilters() {
+			return this.savedFiltersLocal ?? this.board?.settings?.savedFilters ?? []
+		},
+
 		dueRangeOptions() {
 			return [
 				{ value: 'calendarWeek', label: t('deck', 'Calendar week') },
@@ -573,6 +629,8 @@ export default {
 		// two properties we actually care about is enough - and avoids
 		// traversing labels, acl and users on every unrelated board mutation.
 		'board.id': function() {
+			this.savedFiltersLocal = null
+			this.isSavingFilter = false
 			this.clearFilter()
 		},
 
@@ -610,6 +668,7 @@ export default {
 			setNavShown: 'toggleNav',
 			toggleCompact: 'toggleCompactMode',
 			toggleCardCover: 'toggleShowCardCover',
+			setConfig: 'setConfig',
 		}),
 
 		beforeSetFilter(e) {
@@ -644,6 +703,52 @@ export default {
 				}
 				this.setFilterInStore({ ...this.filter })
 			})
+		},
+
+		async storeSavedFilters(savedFilters) {
+			const previous = this.savedFilters
+			this.savedFiltersLocal = savedFilters
+			try {
+				await this.setConfig({ [`board:${this.board.id}:savedFilters`]: savedFilters })
+			} catch (e) {
+				this.savedFiltersLocal = previous
+				showError(t('deck', 'The saved filters could not be updated'))
+				throw e
+			}
+		},
+
+		async saveFilter() {
+			const name = this.savedFilterName.trim()
+			const filter = { ...this.filter }
+			// weeks and months are saved as "the current one", custom ranges with their dates
+			if (filter.due === 'calendarWeek' || filter.due === 'calendarMonth') {
+				filter.dueFrom = ''
+				filter.dueTo = ''
+			}
+			const others = this.savedFilters.filter((saved) => saved.name.toLowerCase() !== name.toLowerCase())
+			await this.storeSavedFilters([...others, { name, filter }])
+			this.isSavingFilter = false
+			this.savedFilterName = ''
+		},
+
+		cancelSaveFilter() {
+			this.isSavingFilter = false
+			this.savedFilterName = ''
+		},
+
+		applySavedFilter(saved) {
+			this.clearFilter()
+			Object.assign(this.filter, saved.filter)
+			if (this.filter.due === 'calendarWeek' || this.filter.due === 'calendarMonth') {
+				const { from, to } = periodAround(this.filter.due)
+				this.filter.dueFrom = from
+				this.filter.dueTo = to
+			}
+			this.setFilterInStore({ ...this.filter })
+		},
+
+		deleteSavedFilter(index) {
+			this.storeSavedFilters(this.savedFilters.filter((saved, i) => i !== index))
 		},
 
 		toggleExcluded(excludedKey, selectedKey, value) {
@@ -895,6 +1000,24 @@ export default {
 	.filter--item-excluded input + label {
 		text-decoration: line-through;
 		opacity: .7;
+	}
+
+	.filter--saved {
+		display: flex;
+		align-items: center;
+	}
+
+	.filter--save {
+		display: flex;
+		flex-direction: column;
+		gap: var(--default-grid-baseline);
+		margin-bottom: var(--default-grid-baseline);
+	}
+
+	.filter--save-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: var(--default-grid-baseline);
 	}
 
 	.filter--match {

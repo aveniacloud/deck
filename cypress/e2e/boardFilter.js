@@ -312,6 +312,57 @@ describe('Board filter', function() {
 		})
 	})
 
+	describe('Saved filters', function() {
+		it('Cancels saving without storing anything', function() {
+			cy.login(user)
+			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
+			cy.get('.board .card').should('have.length', 4)
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('.filter label:contains("Finished")').click()
+
+			cy.get('.filter button:contains("Save filter")').click()
+			cy.get('.filter--save input').type('Not kept')
+			cy.get('.filter--save button:contains("Cancel")').click()
+
+			cy.get('.filter--save').should('not.exist')
+			cy.get('.filter--saved').should('not.exist')
+			cy.get('.filter button:contains("Save filter")').should('be.visible')
+		})
+
+		it('Saves, applies after a reload and deletes a filter', function() {
+			cy.login(user)
+			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
+			cy.get('.board .card').should('have.length', 4)
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('.filter label:contains("Finished")').click()
+			cy.get('.filter label:contains("To review")').click()
+			cy.get('label[for="filter-option-tags-any"]').click()
+			cy.get('.board .card').should('have.length', 3)
+
+			cy.get('.filter button:contains("Save filter")').click()
+			cy.get('.filter--save input').type('Finished or review')
+			cy.intercept('POST', '**/config/board:*:savedFilters').as('saveFilters')
+			cy.get('.filter--save button[type="submit"]').click()
+			cy.wait('@saveFilters').its('response.statusCode').should('eq', 200)
+			cy.get('.filter--saved:contains("Finished or review")').should('be.visible')
+
+			cy.reload()
+			cy.get('.board .card').should('have.length', 4)
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('.filter--saved button:contains("Finished or review")').click()
+
+			cy.get('.board .card').should('have.length', 3)
+			cy.get('#filter-option-tags-any').should('be.checked')
+
+			cy.get('[aria-label="Delete saved filter Finished or review"]').click()
+			cy.wait('@saveFilters')
+			cy.get('.filter--saved').should('not.exist')
+			cy.reload()
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('.filter--saved').should('not.exist')
+		})
+	})
+
 	describe('By due date', function() {
 		beforeEach(function() {
 			cy.login(user)
