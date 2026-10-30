@@ -552,9 +552,6 @@ export default {
 			if (e.target.value === 'unassigned') {
 				this.filter.users = []
 				this.setFilterInStore({ ...this.filter })
-			} else {
-				this.filter.completed = 'both'
-				this.setFilterInStore({ ...this.filter })
 			}
 			this.setFilterInStore({ ...this.filter })
 		},

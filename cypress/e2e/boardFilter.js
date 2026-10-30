@@ -265,6 +265,15 @@ describe('Board filter', function() {
 			cy.get('.board .card:contains("Overdue")').should('not.exist')
 		})
 
+		it('Keeps the status filter when a due date option is picked', function() {
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('label[for="filter-option-open"]').click()
+			cy.get('label[for="overdue"]').click()
+
+			cy.get('#filter-option-open').should('be.checked')
+			cy.get('.board .card').should('have.length', 1)
+		})
+
 		it('Supports the date: keywords in the search', function() {
 			const expected = {
 				'date:overdue': ['Overdue'],
