@@ -20,7 +20,7 @@ export const useCardStore = defineStore('card', {
 	getters: {
 		cardsByStack(state) {
 			return (id) => state.cards.filter((card) => {
-				const { tags, tagMatch, users, userMatch, due, unassigned, completed } = useBoardStore().filter
+				const { tags, tagMatch, users, userMatch, due, dueFrom, dueTo, unassigned, completed } = useBoardStore().filter
 				if (completed === 'open' && card.done !== null) {
 					return false
 				}
@@ -62,6 +62,13 @@ export const useCardStore = defineStore('card', {
 							return (datediffHour > 0 && datediffHour <= 7 * 24 && card.duedate !== null)
 						case 'dueMonth':
 							return (datediffHour > 0 && datediffHour <= 30 * 24 && card.duedate !== null)
+						case 'calendarWeek':
+						case 'calendarMonth':
+						case 'range':
+							// from and to are whole local days, both inclusive; an empty bound is open
+							return card.duedate !== null
+								&& (!dueFrom || !moment(card.duedate).isBefore(moment(dueFrom, 'YYYY-MM-DD').startOf('day')))
+								&& (!dueTo || !moment(card.duedate).isAfter(moment(dueTo, 'YYYY-MM-DD').endOf('day')))
 					}
 				}
 

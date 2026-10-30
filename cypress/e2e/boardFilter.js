@@ -79,6 +79,27 @@ const dateBoard = {
 	],
 }
 
+// Fixed dates around a frozen "today" (Wednesday 2026-10-28, ISO week 44), in local time
+const localIso = (month, day, hour) => new Date(2026, month - 1, day, hour).toISOString()
+const today = new Date(2026, 9, 28, 12).getTime()
+
+const rangeBoard = {
+	title: 'DateRangeFilterBoard',
+	color: 'ffff00',
+	stacks: [
+		{
+			title: 'TestList',
+			cards: [
+				{ title: 'Due Oct 27', duedate: localIso(10, 27, 10) },
+				{ title: 'Due Nov 4', duedate: localIso(11, 4, 10) },
+				{ title: 'Due Nov 30 late', duedate: localIso(11, 30, 22) },
+				{ title: 'Due Dec 1', duedate: localIso(12, 1, 9) },
+				{ title: 'Undated' },
+			],
+		},
+	],
+}
+
 const otherBoard = {
 	title: 'UnrelatedBoard',
 	color: 'ff0000',
@@ -90,6 +111,7 @@ describe('Board filter', function() {
 	let tagBoardId
 	let userBoardId
 	let dateBoardId
+	let rangeBoardId
 
 	before(function() {
 		cy.createUser(user)
@@ -107,6 +129,9 @@ describe('Board filter', function() {
 		})
 		cy.createExampleBoard({ user, board: dateBoard }).then((board) => {
 			dateBoardId = board.id
+		})
+		cy.createExampleBoard({ user, board: rangeBoard }).then((board) => {
+			rangeBoardId = board.id
 		})
 		cy.createExampleBoard({ user, board: otherBoard })
 	})
@@ -290,6 +315,65 @@ describe('Board filter', function() {
 					cy.get(`.board .card:contains("${title}")`).should('be.visible')
 				}
 			}
+		})
+	})
+
+	describe('By calendar week, month or date range', function() {
+		beforeEach(function() {
+			cy.clock(today, ['Date'])
+			cy.login(user)
+			cy.visit(`/apps/deck/#/board/${rangeBoardId}`)
+			cy.get('.board .card').should('have.length', 5)
+			cy.get('[aria-label="Apply filter"]').click()
+		})
+
+		it('Starts at the current calendar week and steps through weeks', function() {
+			cy.get('label[for="calendarWeek"]').click()
+
+			cy.get('[data-cy-due-range-period]').should('contain', 'Week 44, 2026')
+			cy.get('.board .card').should('have.length', 1)
+			cy.get('.board .card:contains("Due Oct 27")').should('be.visible')
+
+			// Vue ignores events not newer than their listener, which a frozen clock guarantees
+			cy.tick(1000)
+			cy.get('[aria-label="Next week"]').click()
+
+			cy.get('[data-cy-due-range-period]').should('contain', 'Week 45, 2026')
+			cy.get('.board .card').should('have.length', 1)
+			cy.get('.board .card:contains("Due Nov 4")').should('be.visible')
+		})
+
+		it('Starts at the current month and steps through months', function() {
+			cy.get('label[for="calendarMonth"]').click()
+
+			cy.get('[data-cy-due-range-period]').should('contain', 'October 2026')
+			cy.get('.board .card').should('have.length', 1)
+
+			// Vue ignores events not newer than their listener, which a frozen clock guarantees
+			cy.tick(1000)
+			cy.get('[aria-label="Next month"]').click()
+
+			cy.get('[data-cy-due-range-period]').should('contain', 'November 2026')
+			cy.get('.board .card').should('have.length', 2)
+			cy.get('.board .card:contains("Due Nov 30 late")').should('be.visible')
+		})
+
+		it('Includes both whole days of a custom range', function() {
+			cy.get('label[for="range"]').click()
+			cy.get('#due-range-from').type('2026-11-04')
+			cy.get('#due-range-to').type('2026-11-30')
+
+			cy.get('.board .card').should('have.length', 2)
+			cy.get('.board .card:contains("Due Nov 4")').should('be.visible')
+			cy.get('.board .card:contains("Due Nov 30 late")').should('be.visible')
+		})
+
+		it('Leaves the range open when only one end is set', function() {
+			cy.get('label[for="range"]').click()
+			cy.get('#due-range-from').type('2026-11-04')
+
+			cy.get('.board .card').should('have.length', 3)
+			cy.get('.board .card:contains("Undated")').should('not.exist')
 		})
 	})
 

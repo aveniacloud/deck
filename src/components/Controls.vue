@@ -275,6 +275,24 @@
 									<label for="dueMonth">{{ t('deck', 'Next 30 days') }}</label>
 								</div>
 
+								<div v-for="option in dueRangeOptions" :key="option.value" class="filter--item">
+									<input
+										:id="option.value"
+										v-model="filter.due"
+										type="radio"
+										class="radio"
+										:value="option.value"
+										@change="setDueRange"
+										@click="beforeSetFilter">
+									<label :for="option.value">{{ option.label }}</label>
+								</div>
+								<DueDateRangeFilter
+									v-if="isDueRange"
+									:mode="filter.due"
+									:from="filter.dueFrom"
+									:to="filter.dueTo"
+									@update="updateDueRange" />
+
 								<div class="filter--item">
 									<input
 										id="noDue"
@@ -373,6 +391,7 @@ import ImageIcon from 'vue-material-design-icons/ImageMultipleOutline.vue'
 import TableColumnPlusAfter from 'vue-material-design-icons/TableColumnPlusAfter.vue'
 import ViewColumnIcon from 'vue-material-design-icons/ViewColumn.vue'
 import CreateNewCardCustomPicker from '../views/CreateNewCardCustomPicker.vue'
+import DueDateRangeFilter, { periodAround } from './DueDateRangeFilter.vue'
 import SessionList from './SessionList.vue'
 import labelStyle from '../mixins/labelStyle.js'
 import { isNotifyPushEnabled } from '../sessions.js'
@@ -403,6 +422,7 @@ export default {
 		NcActionSeparator,
 		TableColumnPlusAfter,
 		SessionList,
+		DueDateRangeFilter,
 	},
 
 	directives: {
@@ -445,7 +465,7 @@ export default {
 			newStackTitle: '',
 			stack: '',
 			isAddStackVisible: false,
-			filter: { tags: [], tagMatch: 'all', users: [], userMatch: 'any', due: '', unassigned: false, completed: 'both' },
+			filter: { tags: [], tagMatch: 'all', users: [], userMatch: 'any', due: '', dueFrom: '', dueTo: '', unassigned: false, completed: 'both' },
 			showAddCardModal: false,
 			defaultPageTitle: false,
 			isNotifyPushEnabled: isNotifyPushEnabled(),
@@ -481,6 +501,18 @@ export default {
 			return {
 				name: 'board.details',
 			}
+		},
+
+		dueRangeOptions() {
+			return [
+				{ value: 'calendarWeek', label: t('deck', 'Calendar week') },
+				{ value: 'calendarMonth', label: t('deck', 'Calendar month') },
+				{ value: 'range', label: t('deck', 'Custom date range') },
+			]
+		},
+
+		isDueRange() {
+			return ['calendarWeek', 'calendarMonth', 'range'].includes(this.filter.due)
 		},
 
 		isFilterActive() {
@@ -563,6 +595,24 @@ export default {
 			this.$nextTick(() => this.setFilterInStore({ ...this.filter }))
 		},
 
+		setDueRange() {
+			this.$nextTick(() => {
+				// weeks and months start at the current one; a custom range keeps what was shown before
+				if (this.filter.due !== 'range') {
+					const { from, to } = periodAround(this.filter.due)
+					this.filter.dueFrom = from
+					this.filter.dueTo = to
+				}
+				this.setFilterInStore({ ...this.filter })
+			})
+		},
+
+		updateDueRange({ from, to }) {
+			this.filter.dueFrom = from
+			this.filter.dueTo = to
+			this.setFilterInStore({ ...this.filter })
+		},
+
 		clearSearchQuery() {
 			this.setSearchQuery('')
 		},
@@ -608,7 +658,7 @@ export default {
 		},
 
 		clearFilter() {
-			const filterReset = { tags: [], tagMatch: 'all', users: [], userMatch: 'any', due: '', unassigned: false, completed: 'both' }
+			const filterReset = { tags: [], tagMatch: 'all', users: [], userMatch: 'any', due: '', dueFrom: '', dueTo: '', unassigned: false, completed: 'both' }
 			this.setFilterInStore({ ...filterReset })
 			this.filter = filterReset
 		},

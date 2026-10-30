@@ -95,6 +95,12 @@ When you select more than one tag, you can choose whether a card needs **all** o
 
 The same choice is offered when you select more than one user: a card can be shown if it is assigned to **any** of the selected users, or only if it is assigned to **all** of them. By default any of them is enough.
 
+Besides the fixed periods (overdue, the next 24 hours, 7 days or 30 days, or no due date), the due date filter offers:
+
+- **Calendar week**: cards due in one calendar week, Monday to Sunday. It starts at the current week; use the arrows to move to earlier or later weeks.
+- **Calendar month**: the same for whole months.
+- **Custom date range**: cards due between a start and an end date, both days included. Leave one of them empty to show everything due after the start or before the end.
+
 ### 7. Sharing boards
 You can share boards with a user, a group, or, if you are using the [Circles](https://apps.nextcloud.com/apps/circles) app, with a circle.
 
