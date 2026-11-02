@@ -95,11 +95,13 @@ Below the "Filter by tag" heading, **Any tag | All tags** decides whether a card
 
 To leave cards out instead, use the minus button at the end of a tag or user. Cards carrying that tag, or assigned to that user, are hidden, whatever else is selected. Click the button again, or select the tag or user, to stop hiding them.
 
-Besides the fixed periods (overdue, the next 24 hours, 7 days or 30 days, or no due date), the due date filter offers:
+Besides the fixed periods (overdue, the next 24 hours, 7 days or 30 days, or no due date; the "next" periods only include cards due in the future), the due date filter offers:
 
 - **Calendar week**: cards due in one calendar week, Monday to Sunday. It starts at the current week; use the arrows to move to earlier or later weeks.
 - **Calendar month**: the same for whole months.
 - **Custom date range**: cards due between a start and an end date, both days included. Leave one of them empty to show everything due after the start or before the end.
+
+For these three, **Also show overdue open cards** adds the cards whose due date has passed but that are not done yet, for example to review this week's cards together with everything that is late.
 
 If you use the same filter regularly, set it up and choose **Save filter …** at the bottom of the filter menu. Saved filters are listed at the top of the filter menu of that board, each with a short summary of what it shows; click one to apply it, or use the bin icon to delete it. The saved filter that matches the current filter is marked with a check mark. Saved filters are personal: other people on the board do not see them. A saved calendar week or month always means the current one when you apply it later, while a custom date range keeps its dates.
 
@@ -193,7 +195,7 @@ For example the search `project tag:ToDo assigned:alice assigned:bob` will retur
 | description | `:`               | text token used for a case-insentitive search on the cards description |
 | list        | `:`               | text token used for a case-insentitive search on the cards list name |
 | tag         | `:`               | text token used for a case-insentitive search on the assigned tags |
-| date        | `:`               | 'overdue', 'today', 'week', 'month', 'none'                  |
+| date        | `:`               | 'overdue', 'today' (next 24 hours), 'week' (next 7 days), 'month' (next 30 days), 'none'. 'week' and 'month' are not calendar weeks or months; use the filter menu for those |
 |             | `>` `<` `>=` `<=` | Compare the card due date to the passed date (see [supported date formats](https://www.php.net/manual/de/datetime.formats.php)) Card due dates are always considered UTC for comparison |
 | assigned    | `:`               | id or displayname of a user or group for a search on the assigned users or groups |
 

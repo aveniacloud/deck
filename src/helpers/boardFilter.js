@@ -22,6 +22,10 @@ export function normalizeFilter(filter, currentPeriod) {
 	const due = filter.due ?? ''
 	let dueFrom = null
 	let dueTo = null
+	let dueIncludeOverdue = false
+	if (due === 'range' || CALENDAR_PERIODS.includes(due)) {
+		dueIncludeOverdue = !!filter.dueIncludeOverdue
+	}
 	if (due === 'range') {
 		dueFrom = filter.dueFrom ?? ''
 		dueTo = filter.dueTo ?? ''
@@ -40,6 +44,7 @@ export function normalizeFilter(filter, currentPeriod) {
 		due,
 		dueFrom,
 		dueTo,
+		dueIncludeOverdue,
 	}
 }
 
@@ -91,7 +96,9 @@ export function describeFilter(filter, board, locale = getCanonicalLocale()) {
 	}
 
 	const due = describeDue(filter, locale)
-	if (due) {
+	if (due && filter.dueIncludeOverdue && (filter.due === 'range' || CALENDAR_PERIODS.includes(filter.due))) {
+		parts.push(t('deck', '{period}, including overdue', { period: due }))
+	} else if (due) {
 		parts.push(due)
 	}
 

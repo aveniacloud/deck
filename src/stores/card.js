@@ -20,7 +20,7 @@ export const useCardStore = defineStore('card', {
 	getters: {
 		cardsByStack(state) {
 			return (id) => state.cards.filter((card) => {
-				const { tags, tagMatch, excludedTags = [], users, userMatch, excludedUsers = [], due, dueFrom, dueTo, unassigned, completed } = useBoardStore().filter
+				const { tags, tagMatch, excludedTags = [], users, userMatch, excludedUsers = [], due, dueFrom, dueTo, dueIncludeOverdue, unassigned, completed } = useBoardStore().filter
 				if (completed === 'open' && card.done !== null) {
 					return false
 				}
@@ -64,18 +64,24 @@ export const useCardStore = defineStore('card', {
 						case 'overdue':
 							return (card.overdue === 3)
 						case 'dueToday':
-							return (card.overdue >= 2)
+							return (datediffHour > 0 && datediffHour <= 24 && card.duedate !== null)
 						case 'dueWeek':
 							return (datediffHour > 0 && datediffHour <= 7 * 24 && card.duedate !== null)
 						case 'dueMonth':
 							return (datediffHour > 0 && datediffHour <= 30 * 24 && card.duedate !== null)
 						case 'calendarWeek':
 						case 'calendarMonth':
-						case 'range':
+						case 'range': {
+							if (card.duedate === null) {
+								return false
+							}
 							// from and to are whole local days, both inclusive; an empty bound is open
-							return card.duedate !== null
-								&& (!dueFrom || !moment(card.duedate).isBefore(moment(dueFrom, 'YYYY-MM-DD').startOf('day')))
+							const inRange = (!dueFrom || !moment(card.duedate).isBefore(moment(dueFrom, 'YYYY-MM-DD').startOf('day')))
 								&& (!dueTo || !moment(card.duedate).isAfter(moment(dueTo, 'YYYY-MM-DD').endOf('day')))
+							// overdue open cards are what a review of the period usually has to cover as well
+							const overdueOpen = dueIncludeOverdue && datediffHour < 0 && !card.done
+							return inRange || overdueOpen
+						}
 					}
 				}
 

@@ -342,24 +342,37 @@
 									<label for="dueMonth">{{ t('deck', 'Next 30 days') }}</label>
 								</div>
 
-								<div v-for="option in dueRangeOptions" :key="option.value" class="filter--item">
-									<input
-										:id="option.value"
-										v-model="filter.due"
-										type="radio"
-										name="filter-due"
-										class="radio"
-										:value="option.value"
-										@change="setDueRange"
-										@click="beforeSetFilter">
-									<label :for="option.value">{{ option.label }}</label>
-								</div>
-								<DueDateRangeFilter
-									v-if="isDueRange"
-									:mode="filter.due"
-									:from="filter.dueFrom"
-									:to="filter.dueTo"
-									@update="updateDueRange" />
+								<template v-for="option in dueRangeOptions" :key="option.value">
+									<div class="filter--item">
+										<input
+											:id="option.value"
+											v-model="filter.due"
+											type="radio"
+											name="filter-due"
+											class="radio"
+											:value="option.value"
+											@change="setDueRange"
+											@click="beforeSetFilter">
+										<label :for="option.value">{{ option.label }}</label>
+									</div>
+									<!-- the period controls belong to the option right above them -->
+									<div v-if="filter.due === option.value" class="filter--due-options">
+										<DueDateRangeFilter
+											:mode="filter.due"
+											:from="filter.dueFrom"
+											:to="filter.dueTo"
+											@update="updateDueRange" />
+										<div class="filter--item">
+											<input
+												id="due-include-overdue"
+												v-model="filter.dueIncludeOverdue"
+												type="checkbox"
+												class="checkbox"
+												@change="setFilter">
+											<label for="due-include-overdue">{{ t('deck', 'Also show overdue open cards') }}</label>
+										</div>
+									</div>
+								</template>
 
 								<div class="filter--item">
 									<input
@@ -638,10 +651,6 @@ export default {
 				{ value: 'calendarMonth', label: t('deck', 'Calendar month') },
 				{ value: 'range', label: t('deck', 'Custom date range') },
 			]
-		},
-
-		isDueRange() {
-			return ['calendarWeek', 'calendarMonth', 'range'].includes(this.filter.due)
 		},
 
 		isFilterActive() {
@@ -1185,6 +1194,11 @@ export default {
 		display: flex;
 		justify-content: flex-end;
 		gap: var(--default-grid-baseline);
+	}
+
+	.filter--due-options {
+		margin-block-end: calc(2 * var(--default-grid-baseline));
+		margin-inline-start: calc(4 * var(--default-grid-baseline));
 	}
 
 	.filter--match {

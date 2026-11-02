@@ -44,6 +44,12 @@ describe('describeFilter', () => {
 		expect(describeFilter({ ...empty, due: 'range', dueTo: '2026-11-15' }, board, 'en')).toBe('Due until Nov 15, 2026')
 	})
 
+	it('mentions included overdue cards for periods', () => {
+		expect(describeFilter({ ...empty, due: 'calendarWeek', dueIncludeOverdue: true }, board, 'en')).toBe('Current week, including overdue')
+		// irrelevant for fixed periods, where it cannot be switched on
+		expect(describeFilter({ ...empty, due: 'dueWeek', dueIncludeOverdue: true }, board, 'en')).toBe('Next 7 days')
+	})
+
 	it('skips tags that no longer exist on the board', () => {
 		expect(describeFilter({ ...empty, tags: [1, 99], tagMatch: 'any' }, board, 'en')).toBe('Finished')
 	})
@@ -67,6 +73,12 @@ describe('filtersEqual', () => {
 		const saved = { ...empty, due: 'calendarWeek' }
 		expect(filtersEqual({ ...empty, due: 'calendarWeek', dueFrom: '2026-11-02', dueTo: '2026-11-08' }, saved, currentPeriod)).toBe(true)
 		expect(filtersEqual({ ...empty, due: 'calendarWeek', dueFrom: '2026-11-09', dueTo: '2026-11-15' }, saved, currentPeriod)).toBe(false)
+	})
+
+	it('tells periods with and without overdue cards apart', () => {
+		const week = { ...empty, due: 'calendarWeek' }
+		expect(filtersEqual({ ...week, dueIncludeOverdue: true }, week, currentPeriod)).toBe(false)
+		expect(filtersEqual({ ...empty, due: 'overdue', dueIncludeOverdue: true }, { ...empty, due: 'overdue' }, currentPeriod)).toBe(true)
 	})
 
 	it('compares custom ranges by their dates', () => {

@@ -43,6 +43,7 @@ export function emptyFilter(boardId = null) {
 		due: '',
 		dueFrom: '',
 		dueTo: '',
+		dueIncludeOverdue: false,
 		unassigned: false,
 		completed: 'both',
 	}

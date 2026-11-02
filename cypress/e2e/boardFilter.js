@@ -404,6 +404,14 @@ describe('Board filter', function() {
 			cy.get('.board .card:contains("Overdue")').should('not.exist')
 		})
 
+		it('Leaves overdue cards out of the next 24 hours', function() {
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('label[for="dueToday"]').click()
+
+			cy.get('.board .card').should('have.length', 1)
+			cy.get('.board .card:contains("In three hours")').should('be.visible')
+		})
+
 		it('Leaves overdue cards out of the next 30 days', function() {
 			cy.get('[aria-label="Apply filter"]').click()
 			cy.get('label[for="dueMonth"]').click()
@@ -462,6 +470,26 @@ describe('Board filter', function() {
 
 			cy.get('[data-cy-due-range-period]').should('contain', 'Week 45, 2026')
 			cy.get('.board .card').should('have.length', 1)
+			cy.get('.board .card:contains("Due Nov 4")').should('be.visible')
+		})
+
+		it('Shows the period controls right below their option', function() {
+			cy.get('label[for="calendarWeek"]').click()
+
+			cy.get('label[for="calendarWeek"]').parent().next().find('[data-cy-due-range-period]').should('exist')
+		})
+
+		it('Adds overdue open cards to a period on request', function() {
+			cy.get('label[for="calendarWeek"]').click()
+			// Vue ignores events not newer than their listener, which a frozen clock guarantees
+			cy.tick(1000)
+			cy.get('[aria-label="Next week"]').click()
+			cy.get('.board .card').should('have.length', 1)
+
+			cy.get('label[for="due-include-overdue"]').click()
+
+			cy.get('.board .card').should('have.length', 2)
+			cy.get('.board .card:contains("Due Oct 27")').should('be.visible')
 			cy.get('.board .card:contains("Due Nov 4")').should('be.visible')
 		})
 

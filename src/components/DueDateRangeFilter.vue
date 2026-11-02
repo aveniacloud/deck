@@ -145,9 +145,7 @@ export default {
 
 <style lang="scss" scoped>
 .due-range {
-	margin: var(--default-grid-baseline) 0 calc(2 * var(--default-grid-baseline));
-	padding-inline-start: var(--default-grid-baseline);
-	border-inline-start: 2px solid var(--color-border);
+	margin-block: var(--default-grid-baseline);
 }
 
 .due-range__stepper {
