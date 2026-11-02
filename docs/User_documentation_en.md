@@ -103,7 +103,7 @@ Besides the fixed periods (overdue, the next 24 hours, 7 days or 30 days, or no 
 - **Calendar month**: the same for whole months.
 - **Custom date range**: cards due between a start and an end date, both days included. Leave one of them empty to show everything due after the start or before the end.
 
-If you use the same filter regularly, set it up and choose **Save filter …** at the bottom of the filter menu. Saved filters are listed at the top of the filter menu of that board; click one to apply it, or use the bin icon to delete it. Saved filters are personal: other people on the board do not see them. A saved calendar week or month always means the current one when you apply it later, while a custom date range keeps its dates.
+If you use the same filter regularly, set it up and choose **Save filter …** at the bottom of the filter menu. Saved filters are listed at the top of the filter menu of that board, each with a short summary of what it shows; click one to apply it, or use the bin icon to delete it. The saved filter that matches the current filter is marked with a check mark. Saved filters are personal: other people on the board do not see them. A saved calendar week or month always means the current one when you apply it later, while a custom date range keeps its dates.
 
 ### 7. Sharing boards
 You can share boards with a user, a group, or, if you are using the [Circles](https://apps.nextcloud.com/apps/circles) app, with a circle.

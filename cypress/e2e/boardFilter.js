@@ -349,10 +349,19 @@ describe('Board filter', function() {
 			cy.reload()
 			cy.get('.board .card').should('have.length', 4)
 			cy.get('[aria-label="Apply filter"]').click()
-			cy.get('.filter--saved button:contains("Finished or review")').click()
+			cy.get('.filter--saved-apply:contains("Finished or review")')
+				.should('have.attr', 'aria-pressed', 'false')
+				.should('contain', 'Finished or To review')
+				.click()
 
 			cy.get('.board .card').should('have.length', 3)
 			cy.get('#filter-option-tags-any').should('be.checked')
+			cy.get('.filter--saved-apply:contains("Finished or review")').should('have.attr', 'aria-pressed', 'true')
+
+			// changing the filter means the saved one no longer applies
+			cy.get('label[for="filter-option-tags-all"]').click()
+			cy.get('.filter--saved-apply:contains("Finished or review")').should('have.attr', 'aria-pressed', 'false')
+			cy.get('label[for="filter-option-tags-any"]').click()
 
 			cy.get('[aria-label="Delete saved filter Finished or review"]').click()
 			cy.wait('@saveFilters')

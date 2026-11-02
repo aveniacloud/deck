@@ -109,14 +109,20 @@
 							<div class="filter">
 								<template v-if="savedFilters.length > 0">
 									<h3>{{ t('deck', 'Saved filters') }}</h3>
-									<div v-for="(saved, index) in savedFilters" :key="saved.name" class="filter--saved">
-										<NcButton
-											variant="tertiary"
-											alignment="start"
-											:wide="true"
+									<div v-for="({ saved, summary, active }, index) in savedFilterRows" :key="saved.name" class="filter--saved">
+										<button
+											type="button"
+											class="filter--saved-apply"
+											:aria-pressed="active ? 'true' : 'false'"
+											:title="summary ? `${saved.name}\n${summary}` : saved.name"
 											@click="applySavedFilter(saved)">
-											{{ saved.name }}
-										</NcButton>
+											<CheckIcon v-if="active" class="filter--saved-icon" :size="20" />
+											<FilterIcon v-else class="filter--saved-icon" :size="20" />
+											<span class="filter--saved-text">
+												<span class="filter--saved-name">{{ saved.name }}</span>
+												<span v-if="summary" class="filter--saved-summary">{{ summary }}</span>
+											</span>
+										</button>
 										<NcButton
 											v-if="canEdit"
 											variant="tertiary"
@@ -463,6 +469,7 @@ import ArchiveIcon from 'vue-material-design-icons/ArchiveOutline.vue'
 import ArrowCollapseVerticalIcon from 'vue-material-design-icons/ArrowCollapseVertical.vue'
 import ArrowExpandVerticalIcon from 'vue-material-design-icons/ArrowExpandVertical.vue'
 import ChartGanttIcon from 'vue-material-design-icons/ChartGantt.vue'
+import CheckIcon from 'vue-material-design-icons/Check.vue'
 import FilterOffIcon from 'vue-material-design-icons/FilterOffOutline.vue'
 import FilterIcon from 'vue-material-design-icons/FilterOutline.vue'
 import ImageIcon from 'vue-material-design-icons/ImageMultipleOutline.vue'
@@ -474,6 +481,7 @@ import ViewColumnIcon from 'vue-material-design-icons/ViewColumn.vue'
 import CreateNewCardCustomPicker from '../views/CreateNewCardCustomPicker.vue'
 import DueDateRangeFilter, { periodAround } from './DueDateRangeFilter.vue'
 import SessionList from './SessionList.vue'
+import { describeFilter, filtersEqual } from '../helpers/boardFilter.js'
 import labelStyle from '../mixins/labelStyle.js'
 import { isNotifyPushEnabled } from '../sessions.js'
 import { useBoardStore } from '../stores/board.js'
@@ -505,6 +513,7 @@ export default {
 		NcActionSeparator,
 		TableColumnPlusAfter,
 		TrashIcon,
+		CheckIcon,
 		SessionList,
 		DueDateRangeFilter,
 	},
@@ -593,6 +602,14 @@ export default {
 
 		savedFilters() {
 			return this.savedFiltersLocal ?? this.board?.settings?.savedFilters ?? []
+		},
+
+		savedFilterRows() {
+			return this.savedFilters.map((saved) => ({
+				saved,
+				summary: describeFilter(saved.filter, this.board),
+				active: filtersEqual(this.filter, saved.filter, periodAround),
+			}))
 		},
 
 		dueRangeOptions() {
@@ -1005,6 +1022,66 @@ export default {
 	.filter--saved {
 		display: flex;
 		align-items: center;
+		gap: var(--default-grid-baseline);
+	}
+
+	button.filter--saved-apply {
+		display: flex;
+		flex: 1;
+		align-items: flex-start;
+		gap: calc(2 * var(--default-grid-baseline));
+		min-width: 0;
+		min-height: var(--default-clickable-area);
+		margin: 0;
+		padding: var(--default-grid-baseline) calc(2 * var(--default-grid-baseline));
+		border: none;
+		border-radius: var(--border-radius-element, var(--border-radius-large));
+		background: transparent;
+		color: var(--color-main-text);
+		font-weight: normal;
+		text-align: start;
+		cursor: pointer;
+
+		&:hover {
+			background: var(--color-background-hover);
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--color-main-text);
+			outline-offset: -2px;
+		}
+
+		&[aria-pressed='true'] {
+			background: var(--color-primary-element-light);
+			color: var(--color-primary-element-light-text);
+
+			.filter--saved-summary {
+				color: inherit;
+			}
+		}
+	}
+
+	.filter--saved-icon {
+		flex-shrink: 0;
+		margin-top: 2px;
+	}
+
+	.filter--saved-text {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+
+	.filter--saved-name,
+	.filter--saved-summary {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.filter--saved-summary {
+		color: var(--color-text-maxcontrast);
+		font-size: var(--font-size-small, 13px);
 	}
 
 	.filter--save {
