@@ -139,6 +139,25 @@
 
 								<h3>{{ t('deck', 'Filter by tag') }}</h3>
 								<div
+									class="filter--match"
+									role="radiogroup"
+									:aria-label="t('deck', 'Show cards with any or all of the selected tags')">
+									<NcCheckboxRadioSwitch
+										v-for="mode in ['any', 'all']"
+										:key="mode"
+										:modelValue="filter.tagMatch"
+										type="radio"
+										name="filter-tagMatch"
+										:value="mode"
+										:buttonVariant="true"
+										buttonVariantGrouped="horizontal"
+										:disabled="filter.tags.length < 2"
+										:data-cy-match="`tags-${mode}`"
+										@update:modelValue="setMatchMode('tagMatch', mode)">
+										{{ mode === 'any' ? t('deck', 'Any tag') : t('deck', 'All tags') }}
+									</NcCheckboxRadioSwitch>
+								</div>
+								<div
 									v-for="label in labelsSorted"
 									:key="label.id"
 									class="filter--item filter--item-excludable"
@@ -164,30 +183,27 @@
 										</template>
 									</NcButton>
 								</div>
-								<div v-if="filter.tags.length > 1" class="filter--match">
-									<div class="filter--item">
-										<input
-											id="filter-option-tags-all"
-											v-model="filter.tagMatch"
-											type="radio"
-											class="radio"
-											value="all"
-											@change="setFilter">
-										<label for="filter-option-tags-all">{{ t('deck', 'Cards with all selected tags') }}</label>
-									</div>
-									<div class="filter--item">
-										<input
-											id="filter-option-tags-any"
-											v-model="filter.tagMatch"
-											type="radio"
-											class="radio"
-											value="any"
-											@change="setFilter">
-										<label for="filter-option-tags-any">{{ t('deck', 'Cards with any selected tag') }}</label>
-									</div>
-								</div>
 
 								<h3>{{ t('deck', 'Filter by assigned user') }}</h3>
+								<div
+									class="filter--match"
+									role="radiogroup"
+									:aria-label="t('deck', 'Show cards assigned to any or all of the selected users')">
+									<NcCheckboxRadioSwitch
+										v-for="mode in ['any', 'all']"
+										:key="mode"
+										:modelValue="filter.userMatch"
+										type="radio"
+										name="filter-userMatch"
+										:value="mode"
+										:buttonVariant="true"
+										buttonVariantGrouped="horizontal"
+										:disabled="filter.users.length < 2"
+										:data-cy-match="`users-${mode}`"
+										@update:modelValue="setMatchMode('userMatch', mode)">
+										{{ mode === 'any' ? t('deck', 'Any user') : t('deck', 'All users') }}
+									</NcCheckboxRadioSwitch>
+								</div>
 								<div class="filter--item">
 									<input
 										id="unassigned"
@@ -228,28 +244,6 @@
 											<MinusCircleOutlineIcon v-else :size="18" />
 										</template>
 									</NcButton>
-								</div>
-								<div v-if="filter.users.length > 1" class="filter--match">
-									<div class="filter--item">
-										<input
-											id="filter-option-users-any"
-											v-model="filter.userMatch"
-											type="radio"
-											class="radio"
-											value="any"
-											@change="setFilter">
-										<label for="filter-option-users-any">{{ t('deck', 'Cards assigned to any selected user') }}</label>
-									</div>
-									<div class="filter--item">
-										<input
-											id="filter-option-users-all"
-											v-model="filter.userMatch"
-											type="radio"
-											class="radio"
-											value="all"
-											@change="setFilter">
-										<label for="filter-option-users-all">{{ t('deck', 'Cards assigned to all selected users') }}</label>
-									</div>
 								</div>
 
 								<h3>{{ t('deck', 'Filter by status') }}</h3>
@@ -462,7 +456,7 @@
 import { getCurrentUser } from '@nextcloud/auth'
 import { showError } from '@nextcloud/dialogs'
 import { subscribe, unsubscribe } from '@nextcloud/event-bus'
-import { NcActionButton, NcActions, NcActionSeparator, NcAvatar, NcButton, NcModal, NcPopover, NcTextField } from '@nextcloud/vue'
+import { NcActionButton, NcActions, NcActionSeparator, NcAvatar, NcButton, NcCheckboxRadioSwitch, NcModal, NcPopover, NcTextField } from '@nextcloud/vue'
 import { vOnClickOutside } from '@vueuse/components'
 import { mapActions, mapState, mapWritableState } from 'pinia'
 import ArchiveIcon from 'vue-material-design-icons/ArchiveOutline.vue'
@@ -484,7 +478,7 @@ import SessionList from './SessionList.vue'
 import { describeFilter, filtersEqual } from '../helpers/boardFilter.js'
 import labelStyle from '../mixins/labelStyle.js'
 import { isNotifyPushEnabled } from '../sessions.js'
-import { useBoardStore } from '../stores/board.js'
+import { emptyFilter, rememberMatchModes, useBoardStore } from '../stores/board.js'
 import { useCardStore } from '../stores/card.js'
 import { useSettingsStore } from '../stores/settings.js'
 import { useStackStore } from '../stores/stack.js'
@@ -497,6 +491,7 @@ export default {
 		NcActions,
 		NcActionButton,
 		NcButton,
+		NcCheckboxRadioSwitch,
 		NcPopover,
 		NcTextField,
 		NcAvatar,
@@ -558,7 +553,7 @@ export default {
 			newStackTitle: '',
 			stack: '',
 			isAddStackVisible: false,
-			filter: { tags: [], tagMatch: 'all', excludedTags: [], users: [], userMatch: 'any', excludedUsers: [], due: '', dueFrom: '', dueTo: '', unassigned: false, completed: 'both' },
+			filter: emptyFilter(this.board?.id ?? null),
 			showAddCardModal: false,
 			isSavingFilter: false,
 			savedFilterName: '',
@@ -768,6 +763,14 @@ export default {
 			this.storeSavedFilters(this.savedFilters.filter((saved, i) => i !== index))
 		},
 
+		setMatchMode(key, mode) {
+			this.filter[key] = mode
+			if (this.board) {
+				rememberMatchModes(this.board.id, this.filter)
+			}
+			this.setFilterInStore({ ...this.filter })
+		},
+
 		toggleExcluded(excludedKey, selectedKey, value) {
 			const excluded = this.filter[excludedKey]
 			if (excluded.includes(value)) {
@@ -830,7 +833,7 @@ export default {
 		},
 
 		clearFilter() {
-			const filterReset = { tags: [], tagMatch: 'all', excludedTags: [], users: [], userMatch: 'any', excludedUsers: [], due: '', dueFrom: '', dueTo: '', unassigned: false, completed: 'both' }
+			const filterReset = emptyFilter(this.board?.id ?? null)
 			this.setFilterInStore({ ...filterReset })
 			this.filter = filterReset
 		},
@@ -1098,9 +1101,12 @@ export default {
 	}
 
 	.filter--match {
-		margin: var(--default-grid-baseline) 0 calc(2 * var(--default-grid-baseline));
-		padding-inline-start: var(--default-grid-baseline);
-		border-inline-start: 2px solid var(--color-border);
+		display: flex;
+		margin-bottom: var(--default-grid-baseline);
+
+		> * {
+			flex: 1;
+		}
 	}
 
 	.filter h3 {

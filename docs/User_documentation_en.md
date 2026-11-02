@@ -91,9 +91,7 @@ The **Activity** allows you to see everything that happened in your boards. Ever
 #### Filter cards
 The filter button next to the search field narrows the board down to the cards you are interested in. You can filter by tag, by assigned user, by status and by due date, and combine these filters.
 
-When you select more than one tag, you can choose whether a card needs **all** of the selected tags or **any** of them to be shown. By default it needs all of them.
-
-The same choice is offered when you select more than one user: a card can be shown if it is assigned to **any** of the selected users, or only if it is assigned to **all** of them. By default any of them is enough.
+Below the "Filter by tag" heading, **Any tag | All tags** decides whether a card needs any or all of the selected tags to be shown; it becomes available once you select two or more tags. By default a card needs all of them. **Any user | All users** below "Filter by assigned user" does the same for users, where any of them is enough by default. Your choice is remembered for each board in your browser, also when you clear the filter.
 
 To leave cards out instead, use the minus button at the end of a tag or user. Cards carrying that tag, or assigned to that user, are hidden, whatever else is selected. Click the button again, or select the tag or user, to stop hiding them.
 

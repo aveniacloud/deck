@@ -19,13 +19,54 @@ export const BOARD_FILTERS = {
 	SHARED: 'shared',
 }
 
+/**
+ * @param {number|null} boardId board whose remembered any/all choices to use
+ * @return {object} a board filter that shows every card. The any/all choices for tags and users
+ * are remembered per board in this browser, so they survive clearing the filter and reopening the board.
+ */
+export function emptyFilter(boardId = null) {
+	let modes = {}
+	if (boardId !== null) {
+		try {
+			modes = JSON.parse(localStorage.getItem(`deck.filterMatch.${boardId}`)) ?? {}
+		} catch {
+			modes = {}
+		}
+	}
+	return {
+		tags: [],
+		tagMatch: modes.tagMatch === 'any' ? 'any' : 'all',
+		excludedTags: [],
+		users: [],
+		userMatch: modes.userMatch === 'all' ? 'all' : 'any',
+		excludedUsers: [],
+		due: '',
+		dueFrom: '',
+		dueTo: '',
+		unassigned: false,
+		completed: 'both',
+	}
+}
+
+/**
+ * @param {number} boardId board to remember the choices for
+ * @param {{tagMatch: string, userMatch: string}} modes the any/all choices
+ */
+export function rememberMatchModes(boardId, { tagMatch, userMatch }) {
+	try {
+		localStorage.setItem(`deck.filterMatch.${boardId}`, JSON.stringify({ tagMatch, userMatch }))
+	} catch {
+		// without storage the choice only lasts until the filter is cleared
+	}
+}
+
 export const useBoardStore = defineStore('board', {
 	state: () => ({
 		currentBoard: null,
 		showArchived: false,
 		viewModeByBoard: {},
 		assignableUsers: [],
-		filter: { tags: [], tagMatch: 'all', excludedTags: [], users: [], userMatch: 'any', excludedUsers: [], due: '', dueFrom: '', dueTo: '', unassigned: false, completed: 'both' },
+		filter: emptyFilter(),
 		boardFilter: BOARD_FILTERS.ALL,
 		boards: loadState('deck', 'initialBoards', {}),
 	}),
@@ -145,7 +186,7 @@ export const useBoardStore = defineStore('board', {
 			localStorage.setItem(`deck.viewMode.${this.currentBoard.id}`, mode)
 		},
 		async loadBoardById(boardId) {
-			this.filter = { tags: [], tagMatch: 'all', excludedTags: [], users: [], userMatch: 'any', excludedUsers: [], due: '', dueFrom: '', dueTo: '', unassigned: false, completed: 'both' }
+			this.filter = emptyFilter(boardId)
 			this.setCurrentBoard(null)
 			const board = await apiClient.loadById(boardId)
 			this.setCurrentBoard(board)

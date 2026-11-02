@@ -7,6 +7,9 @@ import { randUser } from '../utils/index.js'
 
 const user = randUser()
 
+// the any/all switch keeps its radio input visually hidden; click its label like a user would
+const chooseMatch = (mode) => cy.get(`input[data-cy-match="${mode}"]`).parent().click()
+
 // sampleBoard() only ships one card, so searching would have nothing to discriminate
 const filterBoard = {
 	title: 'FilterBoard',
@@ -186,12 +189,13 @@ describe('Board filter', function() {
 			cy.get('.filter label:contains("Finished")').click()
 		})
 
-		it('Only offers a match mode once two tags are selected', function() {
-			cy.get('#filter-option-tags-any').should('not.exist')
+		it('Enables the match mode once two tags are selected', function() {
+			cy.get('input[data-cy-match="tags-any"]').should('be.disabled')
 
 			cy.get('.filter label:contains("To review")').click()
 
-			cy.get('#filter-option-tags-all').should('be.checked')
+			cy.get('input[data-cy-match="tags-any"]').should('not.be.disabled')
+			cy.get('input[data-cy-match="tags-all"]').should('be.checked')
 		})
 
 		it('Requires all selected tags by default', function() {
@@ -203,22 +207,24 @@ describe('Board filter', function() {
 
 		it('Shows cards with any selected tag when switched', function() {
 			cy.get('.filter label:contains("To review")').click()
-			cy.get('label[for="filter-option-tags-any"]').click()
+			chooseMatch('tags-any')
 
 			cy.get('.board .card').should('have.length', 3)
 			cy.get('.board .card:contains("No tags")').should('not.exist')
 		})
 
-		it('Resets the match mode when the filter is cleared', function() {
+		it('Remembers the match mode after clearing and reloading', function() {
 			cy.get('.filter label:contains("To review")').click()
-			cy.get('label[for="filter-option-tags-any"]').click()
+			chooseMatch('tags-any')
 
 			cy.get('.filter button:contains("Clear filter")').click()
 			cy.get('.board .card').should('have.length', 4)
-			cy.get('.filter label:contains("Finished")').click()
-			cy.get('.filter label:contains("To review")').click()
+			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
 
-			cy.get('#filter-option-tags-all').should('be.checked')
+			cy.reload()
+			cy.get('.board .card').should('have.length', 4)
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
 		})
 	})
 
@@ -231,12 +237,13 @@ describe('Board filter', function() {
 			cy.get(`label[for="${alice.userId}"]`).click()
 		})
 
-		it('Only offers a match mode once two users are selected', function() {
-			cy.get('#filter-option-users-all').should('not.exist')
+		it('Enables the match mode once two users are selected', function() {
+			cy.get('input[data-cy-match="users-all"]').should('be.disabled')
 
 			cy.get(`label[for="${bob.userId}"]`).click()
 
-			cy.get('#filter-option-users-any').should('be.checked')
+			cy.get('input[data-cy-match="users-all"]').should('not.be.disabled')
+			cy.get('input[data-cy-match="users-any"]').should('be.checked')
 		})
 
 		it('Shows cards assigned to any selected user by default', function() {
@@ -248,22 +255,19 @@ describe('Board filter', function() {
 
 		it('Requires all selected users when switched', function() {
 			cy.get(`label[for="${bob.userId}"]`).click()
-			cy.get('label[for="filter-option-users-all"]').click()
+			chooseMatch('users-all')
 
 			cy.get('.board .card').should('have.length', 1)
 			cy.get('.board .card:contains("Alice and Bob")').should('be.visible')
 		})
 
-		it('Resets the match mode when the filter is cleared', function() {
+		it('Keeps the match mode when the filter is cleared', function() {
 			cy.get(`label[for="${bob.userId}"]`).click()
-			cy.get('label[for="filter-option-users-all"]').click()
+			chooseMatch('users-all')
 
 			cy.get('.filter button:contains("Clear filter")').click()
 			cy.get('.board .card').should('have.length', 4)
-			cy.get(`label[for="${alice.userId}"]`).click()
-			cy.get(`label[for="${bob.userId}"]`).click()
-
-			cy.get('#filter-option-users-any').should('be.checked')
+			cy.get('input[data-cy-match="users-all"]').should('be.checked')
 		})
 	})
 
@@ -336,7 +340,7 @@ describe('Board filter', function() {
 			cy.get('[aria-label="Apply filter"]').click()
 			cy.get('.filter label:contains("Finished")').click()
 			cy.get('.filter label:contains("To review")').click()
-			cy.get('label[for="filter-option-tags-any"]').click()
+			chooseMatch('tags-any')
 			cy.get('.board .card').should('have.length', 3)
 
 			cy.get('.filter button:contains("Save filter")').click()
@@ -355,13 +359,13 @@ describe('Board filter', function() {
 				.click()
 
 			cy.get('.board .card').should('have.length', 3)
-			cy.get('#filter-option-tags-any').should('be.checked')
+			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
 			cy.get('.filter--saved-apply:contains("Finished or review")').should('have.attr', 'aria-pressed', 'true')
 
 			// changing the filter means the saved one no longer applies
-			cy.get('label[for="filter-option-tags-all"]').click()
+			chooseMatch('tags-all')
 			cy.get('.filter--saved-apply:contains("Finished or review")').should('have.attr', 'aria-pressed', 'false')
-			cy.get('label[for="filter-option-tags-any"]').click()
+			chooseMatch('tags-any')
 
 			cy.get('[aria-label="Delete saved filter Finished or review"]').click()
 			cy.wait('@saveFilters')
