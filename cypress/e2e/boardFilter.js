@@ -198,6 +198,17 @@ describe('Board filter', function() {
 			cy.get('input[data-cy-match="tags-all"]').should('be.checked')
 		})
 
+		it('Announces how many cards are shown', function() {
+			cy.get('p.hidden-visually[aria-live]').should('contain', '2 cards shown')
+		})
+
+		it('Keeps focus in the popover after clearing the filter', function() {
+			cy.get('.filter button:contains("Clear filter")').click()
+
+			cy.focused().should('match', '.filter--item input')
+			cy.get('p.hidden-visually[aria-live]').should('contain', '4 cards shown')
+		})
+
 		it('Requires all selected tags by default', function() {
 			cy.get('.filter label:contains("To review")').click()
 
@@ -325,9 +336,11 @@ describe('Board filter', function() {
 			cy.get('.filter label:contains("Finished")').click()
 
 			cy.get('.filter button:contains("Save filter")').click()
-			cy.get('.filter--save input').type('Not kept')
+			cy.focused().should('match', '.filter--save input')
+			cy.focused().type('Not kept')
 			cy.get('.filter--save button:contains("Cancel")').click()
 
+			cy.focused().should('contain', 'Save filter')
 			cy.get('.filter--save').should('not.exist')
 			cy.get('.filter--saved').should('not.exist')
 			cy.get('.filter button:contains("Save filter")').should('be.visible')

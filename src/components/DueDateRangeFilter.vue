@@ -14,7 +14,7 @@
 					<ChevronLeftIcon :size="20" />
 				</template>
 			</NcButton>
-			<div class="due-range__period" data-cy-due-range-period>
+			<div class="due-range__period" aria-live="polite" data-cy-due-range-period>
 				<span class="due-range__title">{{ periodTitle }}</span>
 				<span class="due-range__dates">{{ periodDates }}</span>
 			</div>

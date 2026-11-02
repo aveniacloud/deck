@@ -83,13 +83,17 @@
 					announcement: title is only the fallback description per HTML-AAM. -->
 				<span v-if="searchHint" id="deck-search-hint" class="hidden-visually">{{ searchHint }}</span>
 			</template>
+			<p v-if="board" class="hidden-visually" aria-live="polite">
+				{{ filterAnnouncement }}
+			</p>
 			<div v-if="board" class="board-action-buttons">
 				<div class="board-action-buttons__filter">
 					<NcPopover
 						placement="bottom-end"
 						noFocusTrap
 						:aria-label="t('deck', 'Active filters')"
-						:name="t('deck', 'Active filters')">
+						:name="t('deck', 'Active filters')"
+						@afterShow="focusFilterOnOpen">
 						<!-- We cannot use NcActions here as we can't style NcActionCheckbox labels dynamically -->
 						<template #trigger>
 							<NcButton
@@ -106,7 +110,7 @@
 						</template>
 
 						<template #default>
-							<div class="filter">
+							<div ref="filterContent" class="filter">
 								<template v-if="savedFilters.length > 0">
 									<h3>{{ t('deck', 'Saved filters') }}</h3>
 									<div v-for="({ saved, summary, active }, index) in savedFilterRows" :key="saved.name" class="filter--saved">
@@ -252,6 +256,7 @@
 										id="filter-option-both"
 										v-model="filter.completed"
 										type="radio"
+										name="filter-status"
 										class="radio"
 										value="both"
 										@change="setFilter"
@@ -263,6 +268,7 @@
 										id="filter-option-open"
 										v-model="filter.completed"
 										type="radio"
+										name="filter-status"
 										class="radio"
 										value="open"
 										@change="setFilter"
@@ -275,6 +281,7 @@
 										id="filter-option-completed"
 										v-model="filter.completed"
 										type="radio"
+										name="filter-status"
 										class="radio"
 										value="completed"
 										@change="setFilter"
@@ -288,6 +295,7 @@
 										id="overdue"
 										v-model="filter.due"
 										type="radio"
+										name="filter-due"
 										class="radio"
 										value="overdue"
 										@change="setFilter"
@@ -300,6 +308,7 @@
 										id="dueToday"
 										v-model="filter.due"
 										type="radio"
+										name="filter-due"
 										class="radio"
 										value="dueToday"
 										@change="setFilter"
@@ -312,6 +321,7 @@
 										id="dueWeek"
 										v-model="filter.due"
 										type="radio"
+										name="filter-due"
 										class="radio"
 										value="dueWeek"
 										@change="setFilter"
@@ -324,6 +334,7 @@
 										id="dueMonth"
 										v-model="filter.due"
 										type="radio"
+										name="filter-due"
 										class="radio"
 										value="dueMonth"
 										@change="setFilter"
@@ -336,6 +347,7 @@
 										:id="option.value"
 										v-model="filter.due"
 										type="radio"
+										name="filter-due"
 										class="radio"
 										:value="option.value"
 										@change="setDueRange"
@@ -354,6 +366,7 @@
 										id="noDue"
 										v-model="filter.due"
 										type="radio"
+										name="filter-due"
 										class="radio"
 										value="noDue"
 										@change="setFilter"
@@ -363,6 +376,7 @@
 
 								<form v-if="isSavingFilter" class="filter--save" @submit.prevent="saveFilter">
 									<NcTextField
+										ref="savedFilterName"
 										v-model="savedFilterName"
 										:label="t('deck', 'Name of the filter')"
 										:maxlength="100" />
@@ -377,12 +391,13 @@
 								</form>
 								<NcButton
 									v-else-if="canEdit"
+									ref="saveFilterButton"
 									:disabled="!isFilterActive"
 									:wide="true"
-									@click="isSavingFilter = true">
+									@click="startSavingFilter">
 									{{ t('deck', 'Save filter …') }}
 								</NcButton>
-								<NcButton :disabled="!isFilterActive" :wide="true" @click="clearFilter">
+								<NcButton :disabled="!isFilterActive" :wide="true" @click="clearFilterFromPopover">
 									{{ t('deck', 'Clear filter') }}
 								</NcButton>
 							</div>
@@ -556,6 +571,9 @@ export default {
 			filter: emptyFilter(this.board?.id ?? null),
 			showAddCardModal: false,
 			isSavingFilter: false,
+			filterAnnouncement: '',
+			announceTimeout: null,
+			skipAnnouncement: false,
 			savedFilterName: '',
 			// saved filters as last stored, until another board is opened
 			savedFiltersLocal: null,
@@ -565,6 +583,7 @@ export default {
 	},
 
 	computed: {
+		...mapState(useBoardStore, { storeFilter: 'filter' }),
 		...mapState(useBoardStore, [
 			'canEdit',
 			'canManage',
@@ -607,6 +626,12 @@ export default {
 			}))
 		},
 
+		visibleCardCount() {
+			const cardStore = useCardStore()
+			return useStackStore().stacksByBoard(this.board.id)
+				.reduce((count, stack) => count + cardStore.cardsByStack(stack.id).filter((card) => !!card.archived === this.showArchived).length, 0)
+		},
+
 		dueRangeOptions() {
 			return [
 				{ value: 'calendarWeek', label: t('deck', 'Calendar week') },
@@ -641,9 +666,26 @@ export default {
 		// two properties we actually care about is enough - and avoids
 		// traversing labels, acl and users on every unrelated board mutation.
 		'board.id': function() {
+			// opening another board resets the filter; that is not a result worth announcing
+			this.skipAnnouncement = true
 			this.savedFiltersLocal = null
 			this.isSavingFilter = false
 			this.clearFilter()
+		},
+
+		storeFilter: {
+			deep: true,
+			handler() {
+				if (this.skipAnnouncement) {
+					this.skipAnnouncement = false
+					return
+				}
+				clearTimeout(this.announceTimeout)
+				this.filterAnnouncement = ''
+				this.announceTimeout = setTimeout(() => {
+					this.filterAnnouncement = n('deck', '%n card shown', '%n cards shown', this.visibleCardCount)
+				}, 500)
+			},
 		},
 
 		pageTitle: {
@@ -664,6 +706,7 @@ export default {
 	},
 
 	beforeUnmount() {
+		clearTimeout(this.announceTimeout)
 		unsubscribe('deck:board:show-new-card', this.clickShowAddCardModel)
 		unsubscribe('deck:board:toggle-filter-popover', this.triggerOpenFilters)
 		unsubscribe('deck:board:clear-filter', this.triggerClearFilter)
@@ -729,6 +772,41 @@ export default {
 			}
 		},
 
+		/**
+		 * Move focus to the index-th match of a selector inside the filter popover, after the next render.
+		 *
+		 * @param {string} selector elements to choose from, in document order
+		 * @param {number} index position to focus, clamped to the last match
+		 */
+		focusInFilter(selector, index = 0) {
+			this.$nextTick(() => {
+				const elements = this.$refs.filterContent?.querySelectorAll(selector) ?? []
+				elements[Math.min(index, elements.length - 1)]?.focus()
+			})
+		},
+
+		focusFirstFilterControl() {
+			this.focusInFilter('.filter--saved-apply, .filter--item input')
+		},
+
+		focusFilterOnOpen() {
+			// the popover reports being shown only after its transition; by then the user may already be working in it
+			if (!this.$refs.filterContent?.contains(document.activeElement)) {
+				this.focusFirstFilterControl()
+			}
+		},
+
+		startSavingFilter() {
+			this.isSavingFilter = true
+			this.$nextTick(() => this.$refs.savedFilterName?.focus())
+		},
+
+		clearFilterFromPopover() {
+			this.clearFilter()
+			// the clear button disables itself, so keep focus in the popover
+			this.focusFirstFilterControl()
+		},
+
 		async saveFilter() {
 			const name = this.savedFilterName.trim()
 			const filter = { ...this.filter }
@@ -741,11 +819,14 @@ export default {
 			await this.storeSavedFilters([...others, { name, filter }])
 			this.isSavingFilter = false
 			this.savedFilterName = ''
+			// focus the new entry, which also scrolls it into view as confirmation
+			this.focusInFilter('.filter--saved-apply', others.length)
 		},
 
 		cancelSaveFilter() {
 			this.isSavingFilter = false
 			this.savedFilterName = ''
+			this.$nextTick(() => this.$refs.saveFilterButton?.$el.focus())
 		},
 
 		applySavedFilter(saved) {
@@ -760,7 +841,13 @@ export default {
 		},
 
 		deleteSavedFilter(index) {
-			this.storeSavedFilters(this.savedFilters.filter((saved, i) => i !== index))
+			const remaining = this.savedFilters.filter((saved, i) => i !== index)
+			this.storeSavedFilters(remaining)
+			if (remaining.length > 0) {
+				this.focusInFilter('.filter--saved-apply', index)
+			} else {
+				this.focusFirstFilterControl()
+			}
 		},
 
 		setMatchMode(key, mode) {
