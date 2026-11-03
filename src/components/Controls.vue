@@ -91,8 +91,8 @@
 					<NcPopover
 						placement="bottom-end"
 						noFocusTrap
-						:aria-label="t('deck', 'Active filters')"
-						:name="t('deck', 'Active filters')"
+						:aria-label="t('deck', 'Filter cards')"
+						:name="t('deck', 'Filter cards')"
 						@afterShow="focusFilterOnOpen">
 						<!-- We cannot use NcActions here as we can't style NcActionCheckbox labels dynamically -->
 						<template #trigger>
@@ -679,7 +679,7 @@ export default {
 			return [
 				{ value: 'calendarWeek', label: t('deck', 'Week') },
 				{ value: 'calendarMonth', label: t('deck', 'Month') },
-				{ value: 'range', label: t('deck', 'Date range') },
+				{ value: 'range', label: t('deck', 'Range') },
 			]
 		},
 

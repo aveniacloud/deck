@@ -120,6 +120,12 @@ describe('filterParts', () => {
 		expect(filterParts({ ...empty, due: 'calendarMonth', dueFrom: '2026-11-01', dueTo: '2026-11-30' }, board, 'en')[0].label).toBe('November 2026')
 	})
 
+	it('gives calendar periods their dates as detail', () => {
+		const part = filterParts({ ...empty, due: 'calendarWeek', dueFrom: '2026-11-02', dueTo: '2026-11-08' }, board, 'en')[0]
+		expect(part.detail.replace(/\s/g, ' ')).toBe('Nov 2 – 8, 2026')
+		expect(filterParts({ ...empty, due: 'dueWeek' }, board, 'en')[0].detail).toBeUndefined()
+	})
+
 	it('offers the avatar of a single selected user', () => {
 		expect(filterParts({ ...empty, users: ['alice'] }, board, 'en')[0]).toMatchObject({ kind: 'users', user: 'alice', label: 'Alice' })
 		expect(filterParts({ ...empty, users: ['alice', 'bob'] }, board, 'en')[0].user).toBeUndefined()

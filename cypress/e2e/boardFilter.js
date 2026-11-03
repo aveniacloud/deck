@@ -308,7 +308,7 @@ describe('Board filter', function() {
 			cy.get('.active-filters li').eq(0).should('contain', 'Finished and To review')
 			cy.get('.active-filters li').eq(1).should('contain', 'Not: Action needed')
 
-			cy.get('[aria-label="Remove filter Finished and To review"]').click()
+			cy.get('[aria-label="Remove filter Tags: Finished and To review"]').click()
 
 			cy.get('.active-filters li').should('have.length', 1)
 			cy.focused().should('have.attr', 'aria-label', 'Remove filter Not: Action needed')
@@ -321,7 +321,7 @@ describe('Board filter', function() {
 			cy.get('.filter label:contains("Finished")').click()
 			cy.get('[aria-label="Apply filter"]').click()
 
-			cy.get('[aria-label="Remove filter Finished"]').click()
+			cy.get('[aria-label="Remove filter Tags: Finished"]').click()
 
 			cy.get('.active-filters').should('not.exist')
 			cy.focused().should('have.attr', 'aria-label', 'Apply filter')
@@ -331,6 +331,7 @@ describe('Board filter', function() {
 			cy.get('[aria-label="Apply filter"]').click()
 			cy.get('.filter label:contains("Finished")').click()
 			cy.get('label[for="filter-option-open"]').click()
+			cy.get('[aria-label="Remove filter Status: Open"]').should('exist')
 
 			cy.get('.active-filters button:contains("Clear filter")').click()
 
@@ -471,6 +472,7 @@ describe('Board filter', function() {
 			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
 			cy.get('.filter--saved-apply:contains("Finished or review")').should('have.attr', 'aria-pressed', 'true')
 			cy.get('.active-filters li').first().should('contain', 'Finished or review')
+			cy.get('.active-filters li').first().find('[aria-label="Remove saved filter Finished or review"]').should('exist')
 
 			// changing the filter means the saved one no longer applies
 			chooseMatch('tags-all')

@@ -69,7 +69,7 @@ export function filtersEqual(a, b, currentPeriod, { anyPeriod = false } = {}) {
  * @param {object} filter board filter
  * @param {object} board the board, for tag titles and user display names
  * @param {string} locale BCP 47 locale for list and date formatting
- * @return {Array<{id: string, kind: string, label: string, name?: string, user?: string, reset: object}>}
+ * @return {Array<{id: string, kind: string, label: string, detail?: string, name?: string, user?: string, reset: object}>}
  */
 export function filterParts(filter, board, locale = getCanonicalLocale()) {
 	const list = (items, type) => new Intl.ListFormat(locale, { type }).format(items)
@@ -117,7 +117,11 @@ export function filterParts(filter, board, locale = getCanonicalLocale()) {
 		due = t('deck', '{period}, including overdue', { period: due })
 	}
 	if (due) {
-		parts.push({ id: 'due', kind: 'due', label: due, reset: { due: '', dueFrom: '', dueTo: '', dueIncludeOverdue: false } })
+		// calendar periods are named ("Week 45, 2026"); their dates are the detail
+		const detail = CALENDAR_PERIODS.includes(filter.due) && filter.dueFrom && filter.dueTo
+			? new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).formatRange(toDay(filter.dueFrom), toDay(filter.dueTo))
+			: undefined
+		parts.push({ id: 'due', kind: 'due', label: due, detail, reset: { due: '', dueFrom: '', dueTo: '', dueIncludeOverdue: false } })
 	}
 
 	return parts

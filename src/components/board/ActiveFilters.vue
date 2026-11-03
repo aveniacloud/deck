@@ -10,17 +10,17 @@
 				<NcChip
 					:text="activeView.name"
 					variant="primary"
-					:ariaLabelClose="t('deck', 'Clear filter')"
+					:ariaLabelClose="t('deck', 'Remove saved filter {name}', { name: activeView.name })"
 					@close="clearFilter">
 					<template #icon>
 						<FilterCheckIcon :size="18" />
 					</template>
 				</NcChip>
 			</li>
-			<li v-for="(part, index) in parts" :key="part.id">
+			<li v-for="(part, index) in parts" :key="part.id" :title="part.detail">
 				<NcChip
 					:text="part.label"
-					:ariaLabelClose="t('deck', 'Remove filter {name}', { name: part.label })"
+					:ariaLabelClose="closeLabel(part)"
 					@close="removePart(part, index + (activeView ? 1 : 0))">
 					<template #icon>
 						<NcAvatar
@@ -142,6 +142,25 @@ export default {
 		 * @param {object} part entry of filterParts()
 		 * @param {number} index position of its chip, to keep keyboard focus nearby
 		 */
+		/**
+		 * The chip text alone ("Open") lacks context for screen readers, so name the facet as well.
+		 *
+		 * @param {object} part entry of filterParts()
+		 * @return {string}
+		 */
+		closeLabel(part) {
+			const facets = {
+				tags: t('deck', 'Tags'),
+				users: t('deck', 'Assigned to'),
+				unassigned: t('deck', 'Assigned to'),
+				status: t('deck', 'Status'),
+				due: t('deck', 'Due date'),
+			}
+			// hidden entries already read "Not: …"
+			const name = facets[part.kind] ? `${facets[part.kind]}: ${part.label}` : part.label
+			return t('deck', 'Remove filter {name}', { name })
+		},
+
 		widen() {
 			this.setFilterValues({ [this.widenTo.key]: 'any' })
 			rememberMatchModes(this.board.id, this.filter)

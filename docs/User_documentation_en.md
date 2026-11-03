@@ -103,7 +103,7 @@ Besides the fixed periods (overdue, the next 24 hours, 7 days or 30 days, or no 
 
 - **Week**: cards due in one calendar week, Monday to Sunday. It starts at the current week; use the arrows to move to earlier or later weeks.
 - **Month**: the same for whole months.
-- **Date range**: cards due between a start and an end date, both days included. Leave one of them empty to show everything due after the start or before the end.
+- **Range**: cards due between a start and an end date, both days included. Leave one of them empty to show everything due after the start or before the end.
 
 **Also show overdue open cards** adds the cards whose due date has passed but that are not done yet, for example to review this week's cards together with everything that is late.
 
