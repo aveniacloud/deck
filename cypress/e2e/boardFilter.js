@@ -311,8 +311,20 @@ describe('Board filter', function() {
 			cy.get('[aria-label="Remove filter Finished and To review"]').click()
 
 			cy.get('.active-filters li').should('have.length', 1)
+			cy.focused().should('have.attr', 'aria-label', 'Remove filter Not: Action needed')
 			cy.get('.filter label:contains("Finished")').parent().find('input').should('not.be.checked')
 			cy.get('.board .card').should('have.length', 3)
+		})
+
+		it('Returns focus to the filter button when the last chip is removed', function() {
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('.filter label:contains("Finished")').click()
+			cy.get('[aria-label="Apply filter"]').click()
+
+			cy.get('[aria-label="Remove filter Finished"]').click()
+
+			cy.get('.active-filters').should('not.exist')
+			cy.focused().should('have.attr', 'aria-label', 'Apply filter')
 		})
 
 		it('Clears everything from the chip bar', function() {
@@ -451,6 +463,15 @@ describe('Board filter', function() {
 			cy.get('[aria-label="Delete saved filter Finished or review"]').click()
 			cy.wait('@saveFilters')
 			cy.get('.filter--saved').should('not.exist')
+
+			// the deletion can be undone from the notification
+			// the toast classes are generated CSS module names, so find it by its message
+			cy.contains('Saved filter "Finished or review" deleted').parent().contains('button', 'Undo').click()
+			cy.wait('@saveFilters')
+			cy.get('.filter--saved:contains("Finished or review")').should('be.visible')
+			cy.get('[aria-label="Delete saved filter Finished or review"]').click()
+			cy.wait('@saveFilters')
+			cy.get('.filter--saved').should('not.exist')
 			cy.reload()
 			cy.get('[aria-label="Apply filter"]').click()
 			cy.get('.filter--saved').should('not.exist')
@@ -545,6 +566,26 @@ describe('Board filter', function() {
 			cy.get('label[for="duePeriod"]').click()
 
 			cy.get('label[for="duePeriod"]').parent().next().find('[data-cy-due-range-period]').should('exist')
+		})
+
+		it('Keeps a saved current week recognised while stepping to other weeks', function() {
+			cy.get('label[for="duePeriod"]').click()
+			cy.get('.filter button:contains("Save filter")').click()
+			cy.get('.filter--save-hint').should('contain', 'always shows the current week')
+			cy.intercept('POST', '**/config/board:*:savedFilters').as('saveFilters')
+			cy.focused().type('Weekly{enter}')
+			cy.wait('@saveFilters')
+			cy.get('.active-filters li').first().should('contain', 'Weekly')
+
+			// Vue ignores events not newer than their listener, which a frozen clock guarantees
+			cy.tick(1000)
+			cy.get('[aria-label="Next week"]').click()
+
+			cy.get('.active-filters li').first().should('contain', 'Weekly')
+			cy.get('.active-filters li').should('contain', 'Week 45, 2026')
+
+			cy.get('[aria-label="Delete saved filter Weekly"]').click()
+			cy.wait('@saveFilters')
 		})
 
 		it('Turns the period off when chosen again', function() {

@@ -4,7 +4,7 @@
 -->
 
 <template>
-	<div v-if="parts.length > 0" class="active-filters">
+	<div v-if="parts.length > 0" ref="bar" class="active-filters">
 		<ul class="active-filters__list" :aria-label="t('deck', 'Active filters')">
 			<li v-if="activeView">
 				<NcChip
@@ -17,11 +17,11 @@
 					</template>
 				</NcChip>
 			</li>
-			<li v-for="part in parts" :key="part.id">
+			<li v-for="(part, index) in parts" :key="part.id">
 				<NcChip
 					:text="part.label"
 					:ariaLabelClose="t('deck', 'Remove filter {name}', { name: part.label })"
-					@close="setFilterValues(part.reset)">
+					@close="removePart(part, index + (activeView ? 1 : 0))">
 					<template #icon>
 						<NcAvatar
 							v-if="part.kind === 'users' && part.user"
@@ -34,7 +34,7 @@
 				</NcChip>
 			</li>
 		</ul>
-		<NcButton variant="tertiary" size="small" @click="clearFilter">
+		<NcButton variant="tertiary" size="small" @click="clearFilter()">
 			{{ t('deck', 'Clear filter') }}
 		</NcButton>
 	</div>
@@ -96,15 +96,41 @@ export default {
 		},
 
 		activeView() {
-			return (this.board.settings?.savedFilters ?? []).find((saved) => filtersEqual(this.filter, saved.filter, periodAround))
+			// a saved calendar week or month stays recognised while stepping to other weeks or months
+			return (this.board.settings?.savedFilters ?? []).find((saved) => filtersEqual(this.filter, saved.filter, periodAround, { anyPeriod: true }))
 		},
 	},
 
 	methods: {
 		...mapActions(useBoardStore, ['setFilterValues']),
 
+		/**
+		 * @param {object} part entry of filterParts()
+		 * @param {number} index position of its chip, to keep keyboard focus nearby
+		 */
+		removePart(part, index) {
+			this.setFilterValues(part.reset)
+			this.focusChip(index)
+		},
+
 		clearFilter() {
 			this.setFilterValues(emptyFilter(this.board.id))
+			this.focusChip(0)
+		},
+
+		/**
+		 * Keep focus near a removed chip: on the chip now at its position, the one before, or,
+		 * once no chip is left and the bar is gone, on the filter button that opens the filter.
+		 *
+		 * @param {number} index position of the removed chip
+		 */
+		focusChip(index) {
+			this.$nextTick(() => {
+				const closeButtons = this.$refs.bar?.querySelectorAll('li button') ?? []
+				const target = closeButtons[Math.min(index, closeButtons.length - 1)]
+					?? document.querySelector('.board-action-buttons__filter .filter-button')
+				target?.focus()
+			})
 		},
 	},
 }

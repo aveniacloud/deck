@@ -420,6 +420,12 @@
 										v-model="savedFilterName"
 										:label="t('deck', 'Name of the filter')"
 										:maxlength="100" />
+									<p v-if="filter.due === 'calendarWeek'" class="filter--save-hint">
+										{{ t('deck', 'The saved filter always shows the current week.') }}
+									</p>
+									<p v-else-if="filter.due === 'calendarMonth'" class="filter--save-hint">
+										{{ t('deck', 'The saved filter always shows the current month.') }}
+									</p>
 									<div class="filter--save-actions">
 										<NcButton variant="tertiary" @click="cancelSaveFilter">
 											{{ t('deck', 'Cancel') }}
@@ -510,7 +516,7 @@
 
 <script>
 import { getCurrentUser } from '@nextcloud/auth'
-import { showError } from '@nextcloud/dialogs'
+import { showError, showUndo } from '@nextcloud/dialogs'
 import { subscribe, unsubscribe } from '@nextcloud/event-bus'
 import { NcActionButton, NcActions, NcActionSeparator, NcAvatar, NcButton, NcCheckboxRadioSwitch, NcModal, NcPopover, NcTextField } from '@nextcloud/vue'
 import { vOnClickOutside } from '@vueuse/components'
@@ -661,7 +667,7 @@ export default {
 			return this.savedFilters.map((saved) => ({
 				saved,
 				summary: describeFilter(saved.filter, this.board),
-				active: filtersEqual(this.filter, saved.filter, periodAround),
+				active: filtersEqual(this.filter, saved.filter, periodAround, { anyPeriod: true }),
 			}))
 		},
 
@@ -897,8 +903,10 @@ export default {
 		},
 
 		deleteSavedFilter(index) {
-			const remaining = this.savedFilters.filter((saved, i) => i !== index)
+			const before = this.savedFilters
+			const remaining = before.filter((saved, i) => i !== index)
 			this.storeSavedFilters(remaining)
+			showUndo(t('deck', 'Saved filter "{name}" deleted', { name: before[index].name }), () => this.storeSavedFilters(before))
 			if (remaining.length > 0) {
 				this.focusInFilter('.filter--saved-apply', index)
 			} else {
@@ -1235,6 +1243,12 @@ export default {
 		flex-direction: column;
 		gap: var(--default-grid-baseline);
 		margin-bottom: var(--default-grid-baseline);
+	}
+
+	.filter--save-hint {
+		margin: 0;
+		color: var(--color-text-maxcontrast);
+		font-size: var(--font-size-small, 13px);
 	}
 
 	.filter--save-actions {

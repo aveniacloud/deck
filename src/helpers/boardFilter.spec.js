@@ -81,6 +81,16 @@ describe('filtersEqual', () => {
 		expect(filtersEqual({ ...empty, due: 'overdue', dueIncludeOverdue: true }, { ...empty, due: 'overdue' }, currentPeriod)).toBe(true)
 	})
 
+	it('can ignore which calendar period is shown', () => {
+		const saved = { ...empty, due: 'calendarWeek' }
+		const nextWeek = { ...empty, due: 'calendarWeek', dueFrom: '2026-11-09', dueTo: '2026-11-15' }
+		expect(filtersEqual(nextWeek, saved, currentPeriod, { anyPeriod: true })).toBe(true)
+		expect(filtersEqual({ ...nextWeek, due: 'calendarMonth' }, saved, currentPeriod, { anyPeriod: true })).toBe(false)
+		// custom ranges keep comparing their dates
+		const range = { ...empty, due: 'range', dueFrom: '2026-11-02', dueTo: '2026-11-15' }
+		expect(filtersEqual(range, { ...range, dueTo: '2026-11-16' }, currentPeriod, { anyPeriod: true })).toBe(false)
+	})
+
 	it('compares custom ranges by their dates', () => {
 		const range = { ...empty, due: 'range', dueFrom: '2026-11-02', dueTo: '2026-11-15' }
 		expect(filtersEqual(range, { ...range }, currentPeriod)).toBe(true)

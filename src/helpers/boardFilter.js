@@ -14,9 +14,10 @@ const CALENDAR_PERIODS = ['calendarWeek', 'calendarMonth']
  *
  * @param {object} filter board filter as kept in the board store or a saved filter
  * @param {(due: string) => {from: string, to: string}} currentPeriod returns {from, to} of the current calendar week or month for a due mode
+ * @param {boolean} anyPeriod ignore which calendar week or month is shown, only compare that it is one
  * @return {object}
  */
-export function normalizeFilter(filter, currentPeriod) {
+export function normalizeFilter(filter, currentPeriod, anyPeriod = false) {
 	const tags = [...(filter.tags ?? [])].sort()
 	const users = [...(filter.users ?? [])].sort()
 	const due = filter.due ?? ''
@@ -29,7 +30,7 @@ export function normalizeFilter(filter, currentPeriod) {
 	if (due === 'range') {
 		dueFrom = filter.dueFrom ?? ''
 		dueTo = filter.dueTo ?? ''
-	} else if (CALENDAR_PERIODS.includes(due)) {
+	} else if (CALENDAR_PERIODS.includes(due) && !anyPeriod) {
 		({ from: dueFrom, to: dueTo } = filter.dueFrom ? { from: filter.dueFrom, to: filter.dueTo } : currentPeriod(due))
 	}
 	return {
@@ -52,10 +53,13 @@ export function normalizeFilter(filter, currentPeriod) {
  * @param {object} a board filter
  * @param {object} b board filter
  * @param {(due: string) => {from: string, to: string}} currentPeriod see normalizeFilter
+ * @param {object} options comparison options
+ * @param {boolean} options.anyPeriod treat filters that only differ in the calendar week or month shown as equal,
+ * e.g. a saved "current week" filter after stepping to the next week
  * @return {boolean} whether both filters show the same cards
  */
-export function filtersEqual(a, b, currentPeriod) {
-	return JSON.stringify(normalizeFilter(a, currentPeriod)) === JSON.stringify(normalizeFilter(b, currentPeriod))
+export function filtersEqual(a, b, currentPeriod, { anyPeriod = false } = {}) {
+	return JSON.stringify(normalizeFilter(a, currentPeriod, anyPeriod)) === JSON.stringify(normalizeFilter(b, currentPeriod, anyPeriod))
 }
 
 /**
