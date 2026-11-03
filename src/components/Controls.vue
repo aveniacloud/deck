@@ -342,37 +342,52 @@
 									<label for="dueMonth">{{ t('deck', 'Next 30 days') }}</label>
 								</div>
 
-								<template v-for="option in dueRangeOptions" :key="option.value">
+								<div class="filter--item">
+									<input
+										id="duePeriod"
+										:checked="isDuePeriod"
+										type="radio"
+										name="filter-due"
+										class="radio"
+										value="period"
+										@click="togglePeriod">
+									<label for="duePeriod">{{ t('deck', 'Period…') }}</label>
+								</div>
+								<!-- the period controls belong to the option right above them -->
+								<div v-if="isDuePeriod" class="filter--due-options">
+									<div
+										class="filter--match"
+										role="radiogroup"
+										:aria-label="t('deck', 'Kind of period')">
+										<NcCheckboxRadioSwitch
+											v-for="option in dueRangeOptions"
+											:key="option.value"
+											:modelValue="filter.due"
+											type="radio"
+											name="filter-due-period"
+											:value="option.value"
+											:buttonVariant="true"
+											buttonVariantGrouped="horizontal"
+											:data-cy-period="option.value"
+											@update:modelValue="choosePeriod(option.value)">
+											{{ option.label }}
+										</NcCheckboxRadioSwitch>
+									</div>
+									<DueDateRangeFilter
+										:mode="filter.due"
+										:from="filter.dueFrom"
+										:to="filter.dueTo"
+										@update="updateDueRange" />
 									<div class="filter--item">
 										<input
-											:id="option.value"
-											v-model="filter.due"
-											type="radio"
-											name="filter-due"
-											class="radio"
-											:value="option.value"
-											@change="setDueRange"
-											@click="beforeSetFilter">
-										<label :for="option.value">{{ option.label }}</label>
+											id="due-include-overdue"
+											v-model="filter.dueIncludeOverdue"
+											type="checkbox"
+											class="checkbox"
+											@change="setFilter">
+										<label for="due-include-overdue">{{ t('deck', 'Also show overdue open cards') }}</label>
 									</div>
-									<!-- the period controls belong to the option right above them -->
-									<div v-if="filter.due === option.value" class="filter--due-options">
-										<DueDateRangeFilter
-											:mode="filter.due"
-											:from="filter.dueFrom"
-											:to="filter.dueTo"
-											@update="updateDueRange" />
-										<div class="filter--item">
-											<input
-												id="due-include-overdue"
-												v-model="filter.dueIncludeOverdue"
-												type="checkbox"
-												class="checkbox"
-												@change="setFilter">
-											<label for="due-include-overdue">{{ t('deck', 'Also show overdue open cards') }}</label>
-										</div>
-									</div>
-								</template>
+								</div>
 
 								<div class="filter--item">
 									<input
@@ -645,10 +660,14 @@ export default {
 
 		dueRangeOptions() {
 			return [
-				{ value: 'calendarWeek', label: t('deck', 'Calendar week') },
-				{ value: 'calendarMonth', label: t('deck', 'Calendar month') },
-				{ value: 'range', label: t('deck', 'Custom date range') },
+				{ value: 'calendarWeek', label: t('deck', 'Week') },
+				{ value: 'calendarMonth', label: t('deck', 'Month') },
+				{ value: 'range', label: t('deck', 'Date range') },
 			]
+		},
+
+		isDuePeriod() {
+			return ['calendarWeek', 'calendarMonth', 'range'].includes(this.filter.due)
 		},
 
 		isFilterActive() {
@@ -758,16 +777,30 @@ export default {
 			this.$nextTick(() => this.setFilterInStore({ ...this.filter }))
 		},
 
-		setDueRange() {
-			this.$nextTick(() => {
-				// weeks and months start at the current one; a custom range keeps what was shown before
-				if (this.filter.due !== 'range') {
-					const { from, to } = periodAround(this.filter.due)
-					this.filter.dueFrom = from
-					this.filter.dueTo = to
-				}
+		/**
+		 * Switch between calendar week, calendar month and custom range. Weeks and months start at the
+		 * current one; a custom range keeps the dates shown before.
+		 *
+		 * @param {string} mode 'calendarWeek', 'calendarMonth' or 'range'
+		 */
+		choosePeriod(mode) {
+			this.filter.due = mode
+			if (mode !== 'range') {
+				const { from, to } = periodAround(mode)
+				this.filter.dueFrom = from
+				this.filter.dueTo = to
+			}
+			this.setFilterInStore({ ...this.filter })
+		},
+
+		togglePeriod() {
+			// like the other due date options, choosing "Period…" again turns it off
+			if (this.isDuePeriod) {
+				this.filter.due = ''
 				this.setFilterInStore({ ...this.filter })
-			})
+			} else {
+				this.choosePeriod('calendarWeek')
+			}
 		},
 
 		async storeSavedFilters(savedFilters) {

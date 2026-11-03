@@ -9,6 +9,7 @@ const user = randUser()
 
 // the any/all switch keeps its radio input visually hidden; click its label like a user would
 const chooseMatch = (mode) => cy.get(`input[data-cy-match="${mode}"]`).parent().click()
+const choosePeriodKind = (kind) => cy.get(`input[data-cy-period="${kind}"]`).parent().click()
 
 // sampleBoard() only ships one card, so searching would have nothing to discriminate
 const filterBoard = {
@@ -508,7 +509,7 @@ describe('Board filter', function() {
 		})
 
 		it('Starts at the current calendar week and steps through weeks', function() {
-			cy.get('label[for="calendarWeek"]').click()
+			cy.get('label[for="duePeriod"]').click()
 
 			cy.get('[data-cy-due-range-period]').should('contain', 'Week 44, 2026')
 			cy.get('.board .card').should('have.length', 1)
@@ -524,13 +525,24 @@ describe('Board filter', function() {
 		})
 
 		it('Shows the period controls right below their option', function() {
-			cy.get('label[for="calendarWeek"]').click()
+			cy.get('label[for="duePeriod"]').click()
 
-			cy.get('label[for="calendarWeek"]').parent().next().find('[data-cy-due-range-period]').should('exist')
+			cy.get('label[for="duePeriod"]').parent().next().find('[data-cy-due-range-period]').should('exist')
+		})
+
+		it('Turns the period off when chosen again', function() {
+			cy.get('label[for="duePeriod"]').click()
+			cy.get('.board .card').should('have.length', 1)
+
+			cy.get('label[for="duePeriod"]').click()
+
+			cy.get('#duePeriod').should('not.be.checked')
+			cy.get('[data-cy-due-range-period]').should('not.exist')
+			cy.get('.board .card').should('have.length', 5)
 		})
 
 		it('Adds overdue open cards to a period on request', function() {
-			cy.get('label[for="calendarWeek"]').click()
+			cy.get('label[for="duePeriod"]').click()
 			// Vue ignores events not newer than their listener, which a frozen clock guarantees
 			cy.tick(1000)
 			cy.get('[aria-label="Next week"]').click()
@@ -544,7 +556,10 @@ describe('Board filter', function() {
 		})
 
 		it('Starts at the current month and steps through months', function() {
-			cy.get('label[for="calendarMonth"]').click()
+			cy.get('label[for="duePeriod"]').click()
+			// Vue ignores events not newer than their listener, which a frozen clock guarantees
+			cy.tick(1000)
+			choosePeriodKind('calendarMonth')
 
 			cy.get('[data-cy-due-range-period]').should('contain', 'October 2026')
 			cy.get('.board .card').should('have.length', 1)
@@ -559,7 +574,10 @@ describe('Board filter', function() {
 		})
 
 		it('Includes both whole days of a custom range', function() {
-			cy.get('label[for="range"]').click()
+			cy.get('label[for="duePeriod"]').click()
+			// Vue ignores events not newer than their listener, which a frozen clock guarantees
+			cy.tick(1000)
+			choosePeriodKind('range')
 			cy.get('#due-range-from').type('2026-11-04')
 			cy.get('#due-range-to').type('2026-11-30')
 
@@ -569,7 +587,12 @@ describe('Board filter', function() {
 		})
 
 		it('Leaves the range open when only one end is set', function() {
-			cy.get('label[for="range"]').click()
+			cy.get('label[for="duePeriod"]').click()
+			// Vue ignores events not newer than their listener, which a frozen clock guarantees
+			cy.tick(1000)
+			choosePeriodKind('range')
+			// the range starts with the dates of the week shown before
+			cy.get('#due-range-to').clear()
 			cy.get('#due-range-from').type('2026-11-04')
 
 			cy.get('.board .card').should('have.length', 3)
