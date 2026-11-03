@@ -112,7 +112,9 @@
 						<template #default>
 							<div ref="filterContent" class="filter">
 								<template v-if="savedFilters.length > 0">
-									<h3>{{ t('deck', 'Saved filters') }}</h3>
+									<div class="filter--heading">
+										<h3>{{ t('deck', 'Saved filters') }}</h3>
+									</div>
 									<div v-for="({ saved, summary, active }, index) in savedFilterRows" :key="saved.name" class="filter--saved">
 										<button
 											type="button"
@@ -141,25 +143,27 @@
 									</div>
 								</template>
 
-								<h3>{{ t('deck', 'Filter by tag') }}</h3>
-								<div
-									class="filter--match"
-									role="radiogroup"
-									:aria-label="t('deck', 'Show cards with any or all of the selected tags')">
-									<NcCheckboxRadioSwitch
-										v-for="mode in ['any', 'all']"
-										:key="mode"
-										:modelValue="filter.tagMatch"
-										type="radio"
-										name="filter-tagMatch"
-										:value="mode"
-										:buttonVariant="true"
-										buttonVariantGrouped="horizontal"
-										:disabled="filter.tags.length < 2"
-										:data-cy-match="`tags-${mode}`"
-										@update:modelValue="setMatchMode('tagMatch', mode)">
-										{{ mode === 'any' ? t('deck', 'Any tag') : t('deck', 'All tags') }}
-									</NcCheckboxRadioSwitch>
+								<div class="filter--heading">
+									<h3>{{ t('deck', 'Tags') }}</h3>
+									<div
+										v-if="filter.tags.length > 1"
+										class="filter--match"
+										role="radiogroup"
+										:aria-label="t('deck', 'Show cards with any or all of the selected tags')">
+										<NcCheckboxRadioSwitch
+											v-for="mode in ['any', 'all']"
+											:key="mode"
+											:modelValue="filter.tagMatch"
+											type="radio"
+											name="filter-tagMatch"
+											:value="mode"
+											:buttonVariant="true"
+											buttonVariantGrouped="horizontal"
+											:data-cy-match="`tags-${mode}`"
+											@update:modelValue="setMatchMode('tagMatch', mode)">
+											{{ mode === 'any' ? t('deck', 'Any') : t('deck', 'All') }}
+										</NcCheckboxRadioSwitch>
+									</div>
 								</div>
 								<div
 									v-for="label in labelsSorted"
@@ -175,6 +179,7 @@
 										@change="setFilter">
 									<label :for="label.id"><span class="label" :style="labelStyle(label)">{{ label.title }}</span></label>
 									<NcButton
+										class="filter--hide"
 										variant="tertiary"
 										size="small"
 										:pressed="filter.excludedTags.includes(label.id)"
@@ -188,25 +193,27 @@
 									</NcButton>
 								</div>
 
-								<h3>{{ t('deck', 'Filter by assigned user') }}</h3>
-								<div
-									class="filter--match"
-									role="radiogroup"
-									:aria-label="t('deck', 'Show cards assigned to any or all of the selected users')">
-									<NcCheckboxRadioSwitch
-										v-for="mode in ['any', 'all']"
-										:key="mode"
-										:modelValue="filter.userMatch"
-										type="radio"
-										name="filter-userMatch"
-										:value="mode"
-										:buttonVariant="true"
-										buttonVariantGrouped="horizontal"
-										:disabled="filter.users.length < 2"
-										:data-cy-match="`users-${mode}`"
-										@update:modelValue="setMatchMode('userMatch', mode)">
-										{{ mode === 'any' ? t('deck', 'Any user') : t('deck', 'All users') }}
-									</NcCheckboxRadioSwitch>
+								<div class="filter--heading">
+									<h3>{{ t('deck', 'Assigned to') }}</h3>
+									<div
+										v-if="filter.users.length > 1"
+										class="filter--match"
+										role="radiogroup"
+										:aria-label="t('deck', 'Show cards assigned to any or all of the selected users')">
+										<NcCheckboxRadioSwitch
+											v-for="mode in ['any', 'all']"
+											:key="mode"
+											:modelValue="filter.userMatch"
+											type="radio"
+											name="filter-userMatch"
+											:value="mode"
+											:buttonVariant="true"
+											buttonVariantGrouped="horizontal"
+											:data-cy-match="`users-${mode}`"
+											@update:modelValue="setMatchMode('userMatch', mode)">
+											{{ mode === 'any' ? t('deck', 'Any') : t('deck', 'All') }}
+										</NcCheckboxRadioSwitch>
+									</div>
 								</div>
 								<div class="filter--item">
 									<input
@@ -237,6 +244,7 @@
 										:disableMenu="true"
 										:hideStatus="true" /> {{ user.displayname }}</label>
 									<NcButton
+										class="filter--hide"
 										variant="tertiary"
 										size="small"
 										:pressed="filter.excludedUsers.includes(user.uid)"
@@ -250,7 +258,9 @@
 									</NcButton>
 								</div>
 
-								<h3>{{ t('deck', 'Filter by status') }}</h3>
+								<div class="filter--heading">
+									<h3>{{ t('deck', 'Status') }}</h3>
+								</div>
 								<div class="filter--item">
 									<input
 										id="filter-option-both"
@@ -289,7 +299,9 @@
 									<label for="filter-option-completed">{{ t('deck', 'Completed') }}</label>
 								</div>
 
-								<h3>{{ t('deck', 'Filter by due date') }}</h3>
+								<div class="filter--heading">
+									<h3>{{ t('deck', 'Due date') }}</h3>
+								</div>
 								<div class="filter--item">
 									<input
 										id="overdue"
@@ -421,9 +433,10 @@
 									v-else-if="canEdit"
 									ref="saveFilterButton"
 									:disabled="!isFilterActive"
+									:title="isFilterActive ? undefined : t('deck', 'Choose a filter first to save it')"
 									:wide="true"
 									@click="startSavingFilter">
-									{{ t('deck', 'Save filter …') }}
+									{{ t('deck', 'Save filter…') }}
 								</NcButton>
 								<NcButton :disabled="!isFilterActive" :wide="true" @click="clearFilterFromPopover">
 									{{ t('deck', 'Clear filter') }}
@@ -1130,7 +1143,7 @@ export default {
 	}
 
 	.filter {
-		width: 240px;
+		width: 280px;
 		max-height: calc(100vh - 150px);
 		position: relative;
 		overflow: auto;
@@ -1244,9 +1257,46 @@ export default {
 		}
 	}
 
-	.filter h3 {
-		margin-top: 0px;
-		margin-bottom: 5px;
+	.filter--heading {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: calc(2 * var(--default-grid-baseline));
+		// room for the any/all switch, so the row keeps its height when the switch appears
+		min-height: calc(var(--default-clickable-area) + 4px);
+		margin-top: calc(3 * var(--default-grid-baseline));
+
+		&:first-child {
+			margin-top: 0;
+		}
+
+		h3 {
+			margin: 0;
+			font-size: var(--default-font-size);
+			font-weight: bold;
+			line-height: var(--default-clickable-area);
+		}
+
+		.filter--match {
+			flex: 0 0 auto;
+			margin: 0;
+
+			> * {
+				flex: none;
+			}
+		}
+	}
+
+	// hide buttons only take attention where a pointer can reveal them; touch screens keep showing them
+	@media (hover: hover) {
+		.filter--item-excludable .filter--hide:not([aria-pressed='true']) {
+			opacity: 0;
+		}
+
+		.filter--item-excludable:hover .filter--hide,
+		.filter--item-excludable:focus-within .filter--hide {
+			opacity: 1;
+		}
 	}
 
 	.filter-button {

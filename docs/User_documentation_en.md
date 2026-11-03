@@ -93,9 +93,9 @@ The filter button next to the search field narrows the board down to the cards y
 
 While a filter is active, it is shown as chips below the board title, for example "HRS or GMA", "Not: bob", "Open" or "Week 45, 2026". Remove a single part of the filter with the cross on its chip, or everything with **Clear filter** next to the chips. When the filter matches one of your saved filters, its name is shown as the first chip.
 
-Below the "Filter by tag" heading, **Any tag | All tags** decides whether a card needs any or all of the selected tags to be shown; it becomes available once you select two or more tags. By default a card needs all of them. **Any user | All users** below "Filter by assigned user" does the same for users, where any of them is enough by default. Your choice is remembered for each board in your browser, also when you clear the filter.
+Once you select two or more tags, **Any | All** appears next to the "Tags" heading and decides whether a card needs any or all of them to be shown. By default a card needs all of them. Next to "Assigned to", **Any | All** does the same for users, where any of them is enough by default. Your choice is remembered for each board in your browser, also when you clear the filter.
 
-To leave cards out instead, use the minus button at the end of a tag or user. Cards carrying that tag, or assigned to that user, are hidden, whatever else is selected. Click the button again, or select the tag or user, to stop hiding them.
+To leave cards out instead, use the minus button at the end of a tag or user; it appears when you point at the row or move the keyboard focus to it. Cards carrying that tag, or assigned to that user, are hidden, whatever else is selected. Click the button again, or select the tag or user, to stop hiding them.
 
 Besides the fixed periods (overdue, the next 24 hours, 7 days or 30 days, or no due date; the "next" periods only include cards due in the future), **Period…** filters by a period of your choice. Pick its kind below it:
 
@@ -105,7 +105,7 @@ Besides the fixed periods (overdue, the next 24 hours, 7 days or 30 days, or no 
 
 **Also show overdue open cards** adds the cards whose due date has passed but that are not done yet, for example to review this week's cards together with everything that is late.
 
-If you use the same filter regularly, set it up and choose **Save filter …** at the bottom of the filter menu. Saved filters are listed at the top of the filter menu of that board, each with a short summary of what it shows; click one to apply it, or use the bin icon to delete it. The saved filter that matches the current filter is marked with a check mark. Saved filters are personal: other people on the board do not see them. A saved calendar week or month always means the current one when you apply it later, while a custom date range keeps its dates.
+If you use the same filter regularly, set it up and choose **Save filter…** at the bottom of the filter menu. Saved filters are listed at the top of the filter menu of that board, each with a short summary of what it shows; click one to apply it, or use the bin icon to delete it. The saved filter that matches the current filter is marked with a check mark. Saved filters are personal: other people on the board do not see them. A saved calendar week or month always means the current one when you apply it later, while a custom date range keeps its dates.
 
 ### 7. Sharing boards
 You can share boards with a user, a group, or, if you are using the [Circles](https://apps.nextcloud.com/apps/circles) app, with a circle.

@@ -190,13 +190,12 @@ describe('Board filter', function() {
 			cy.get('.filter label:contains("Finished")').click()
 		})
 
-		it('Enables the match mode once two tags are selected', function() {
-			cy.get('input[data-cy-match="tags-any"]').should('be.disabled')
+		it('Offers the match mode once two tags are selected', function() {
+			cy.get('input[data-cy-match="tags-any"]').should('not.exist')
 
 			cy.get('.filter label:contains("To review")').click()
 
-			cy.get('input[data-cy-match="tags-any"]').should('not.be.disabled')
-			cy.get('input[data-cy-match="tags-all"]').should('be.checked')
+			cy.get('.filter--heading:contains("Tags") input[data-cy-match="tags-all"]').should('be.checked')
 		})
 
 		it('Announces how many cards are shown', function() {
@@ -231,11 +230,15 @@ describe('Board filter', function() {
 
 			cy.get('.filter button:contains("Clear filter")').click()
 			cy.get('.board .card').should('have.length', 4)
+			cy.get('.filter label:contains("Finished")').click()
+			cy.get('.filter label:contains("To review")').click()
 			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
 
 			cy.reload()
 			cy.get('.board .card').should('have.length', 4)
 			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('.filter label:contains("Finished")').click()
+			cy.get('.filter label:contains("To review")').click()
 			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
 		})
 	})
@@ -249,12 +252,11 @@ describe('Board filter', function() {
 			cy.get(`label[for="${alice.userId}"]`).click()
 		})
 
-		it('Enables the match mode once two users are selected', function() {
-			cy.get('input[data-cy-match="users-all"]').should('be.disabled')
+		it('Offers the match mode once two users are selected', function() {
+			cy.get('input[data-cy-match="users-all"]').should('not.exist')
 
 			cy.get(`label[for="${bob.userId}"]`).click()
 
-			cy.get('input[data-cy-match="users-all"]').should('not.be.disabled')
 			cy.get('input[data-cy-match="users-any"]').should('be.checked')
 		})
 
@@ -279,6 +281,8 @@ describe('Board filter', function() {
 
 			cy.get('.filter button:contains("Clear filter")').click()
 			cy.get('.board .card').should('have.length', 4)
+			cy.get(`label[for="${alice.userId}"]`).click()
+			cy.get(`label[for="${bob.userId}"]`).click()
 			cy.get('input[data-cy-match="users-all"]').should('be.checked')
 		})
 	})
@@ -333,6 +337,19 @@ describe('Board filter', function() {
 	})
 
 	describe('Hiding tags and users', function() {
+		it('Reveals the hide buttons only on hover or focus, unless pressed', function() {
+			cy.login(user)
+			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
+			cy.get('[aria-label="Apply filter"]').click()
+
+			cy.get('[aria-label="Hide cards with tag Later"]').should('have.css', 'opacity', '0')
+			cy.get('[aria-label="Hide cards with tag Later"]').focus()
+			cy.get('[aria-label="Hide cards with tag Later"]').should('have.css', 'opacity', '1')
+			cy.get('[aria-label="Hide cards with tag Later"]').click()
+			cy.get('.filter label:contains("Finished")').click()
+			cy.get('[aria-label="Hide cards with tag Later"]').should('have.css', 'opacity', '1')
+		})
+
 		it('Hides cards that carry a hidden tag', function() {
 			cy.login(user)
 			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
