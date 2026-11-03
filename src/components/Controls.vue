@@ -536,9 +536,10 @@ import TableColumnPlusAfter from 'vue-material-design-icons/TableColumnPlusAfter
 import TrashIcon from 'vue-material-design-icons/TrashCanOutline.vue'
 import ViewColumnIcon from 'vue-material-design-icons/ViewColumn.vue'
 import CreateNewCardCustomPicker from '../views/CreateNewCardCustomPicker.vue'
-import DueDateRangeFilter, { periodAround } from './DueDateRangeFilter.vue'
+import DueDateRangeFilter from './DueDateRangeFilter.vue'
 import SessionList from './SessionList.vue'
 import { describeFilter, filtersEqual } from '../helpers/boardFilter.js'
+import { periodAround } from '../helpers/periods.js'
 import labelStyle from '../mixins/labelStyle.js'
 import { isNotifyPushEnabled } from '../sessions.js'
 import { emptyFilter, rememberMatchModes, useBoardStore } from '../stores/board.js'
@@ -616,9 +617,12 @@ export default {
 			newStackTitle: '',
 			stack: '',
 			isAddStackVisible: false,
-			filter: emptyFilter(this.board?.id ?? null),
+			// a copy of the store's filter, which may have been restored for this board
+			filter: JSON.parse(JSON.stringify(useBoardStore().filter)),
 			showAddCardModal: false,
 			isSavingFilter: false,
+			// the store filter as this popover last wrote it, to tell its own changes from others'
+			lastWrittenFilter: null,
 			filterAnnouncement: '',
 			announceTimeout: null,
 			skipAnnouncement: false,
@@ -719,18 +723,20 @@ export default {
 		// two properties we actually care about is enough - and avoids
 		// traversing labels, acl and users on every unrelated board mutation.
 		'board.id': function() {
-			// opening another board resets the filter; that is not a result worth announcing
+			// opening another board brings its own (possibly restored) filter; not a result worth announcing
 			this.skipAnnouncement = true
 			this.isSavingFilter = false
-			this.clearFilter()
+			this.filter = JSON.parse(JSON.stringify(this.storeFilter))
 		},
 
 		storeFilter: {
 			deep: true,
 			handler(storeFilter) {
-				// the filter can also change outside the popover (filter chips, clicking a tag on a card)
-				if (JSON.stringify(storeFilter) !== JSON.stringify(this.filter)) {
-					this.filter = JSON.parse(JSON.stringify(storeFilter))
+				// the filter can also change outside the popover (filter chips, clicking a tag on a card).
+				// Adopt only those changes: the popover's own writes can lag behind its local state.
+				const current = JSON.stringify(storeFilter)
+				if (current !== this.lastWrittenFilter && current !== JSON.stringify(this.filter)) {
+					this.filter = JSON.parse(current)
 				}
 				if (this.skipAnnouncement) {
 					this.skipAnnouncement = false
@@ -771,7 +777,7 @@ export default {
 	},
 
 	methods: {
-		...mapActions(useBoardStore, { setViewMode: 'setViewMode', toggleShowArchived: 'toggleShowArchived', setFilterInStore: 'setFilterInStore', setCurrentBoardSetting: 'setCurrentBoardSetting' }),
+		...mapActions(useBoardStore, { setViewMode: 'setViewMode', toggleShowArchived: 'toggleShowArchived', storeSetFilter: 'setFilterInStore', setCurrentBoardSetting: 'setCurrentBoardSetting' }),
 		...mapActions(useStackStore, ['createStack']),
 		...mapActions(useSettingsStore, {
 			setSearchQuery: 'setSearchQuery',
@@ -848,6 +854,16 @@ export default {
 		 * @param {string} selector elements to choose from, in document order
 		 * @param {number} index position to focus, clamped to the last match
 		 */
+		/**
+		 * Write the popover's filter to the store, remembering the result.
+		 *
+		 * @param {object} filter filter values to write
+		 */
+		setFilterInStore(filter) {
+			this.lastWrittenFilter = JSON.stringify({ ...this.storeFilter, ...filter })
+			this.storeSetFilter(filter)
+		},
+
 		focusInFilter(selector, index = 0) {
 			this.$nextTick(() => {
 				const elements = this.$refs.filterContent?.querySelectorAll(selector) ?? []

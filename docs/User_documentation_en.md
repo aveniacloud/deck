@@ -91,7 +91,7 @@ The **Activity** allows you to see everything that happened in your boards. Ever
 #### Filter cards
 The filter button next to the search field narrows the board down to the cards you are interested in. You can filter by tag, by assigned user, by status and by due date, and combine these filters.
 
-While a filter is active, it is shown as chips below the board title, for example "HRS or GMA", "Not: bob", "Open" or "Week 45, 2026 · Nov 2 – 8". Remove a single part of the filter with the cross on its chip, or everything with **Clear filter** next to the chips. When the filter matches one of your saved filters, its name is shown as the first chip.
+The filter of a board is kept in your browser, so it is still applied when you reload or come back to the board (a calendar week or month then shows the current one). While a filter is active, it is shown as chips below the board title, for example "HRS or GMA", "Not: bob", "Open" or "Week 45, 2026 · Nov 2 – 8". Remove a single part of the filter with the cross on its chip, or everything with **Clear filter** next to the chips. When the filter matches one of your saved filters, its name is shown as the first chip.
 
 A chip for a calendar week or month shows its dates and has arrows to move to the previous or next week or month without opening the filter.
 

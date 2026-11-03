@@ -52,25 +52,9 @@ import moment from '@nextcloud/moment'
 import { NcButton, NcDateTimePickerNative } from '@nextcloud/vue'
 import ChevronLeftIcon from 'vue-material-design-icons/ChevronLeft.vue'
 import ChevronRightIcon from 'vue-material-design-icons/ChevronRight.vue'
+import { periodAround } from '../helpers/periods.js'
 
 const DAY = 'YYYY-MM-DD'
-
-/**
- * First and last day of the calendar week or month containing the given day.
- * Weeks are ISO weeks (Monday to Sunday), matching the week numbers people use.
- *
- * @param {string} mode 'calendarWeek' or 'calendarMonth'
- * @param {string} day any day of the period, as YYYY-MM-DD; today if empty
- * @return {{from: string, to: string}}
- */
-export function periodAround(mode, day) {
-	const unit = mode === 'calendarWeek' ? 'isoWeek' : 'month'
-	const anchor = day ? moment(day, DAY) : moment()
-	return {
-		from: anchor.clone().startOf(unit).format(DAY),
-		to: anchor.clone().endOf(unit).format(DAY),
-	}
-}
 
 export default {
 	name: 'DueDateRangeFilter',

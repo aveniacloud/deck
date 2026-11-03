@@ -241,11 +241,10 @@ describe('Board filter', function() {
 			cy.get('.filter label:contains("To review")').click()
 			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
 
+			// the filter itself is kept after reloading, too
 			cy.reload()
-			cy.get('.board .card').should('have.length', 4)
+			cy.get('.board .card').should('have.length', 3)
 			cy.get('[aria-label="Apply filter"]').click()
-			cy.get('.filter label:contains("Finished")').click()
-			cy.get('.filter label:contains("To review")').click()
 			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
 		})
 	})
@@ -369,6 +368,22 @@ describe('Board filter', function() {
 			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
 		})
 
+		it('Keeps the filter after a reload until it is cleared', function() {
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('.filter label:contains("Finished")').click()
+			cy.get('.board .card').should('have.length', 2)
+
+			cy.reload()
+
+			cy.get('.active-filters li').should('contain', 'Finished')
+			cy.get('.board .card').should('have.length', 2)
+			cy.get('.active-filters button:contains("Clear filter")').click()
+			cy.reload()
+
+			cy.get('.board .card').should('have.length', 4)
+			cy.get('.active-filters').should('not.exist')
+		})
+
 		it('Ticks a tag in the popover after clicking it on a card', function() {
 			cy.get('.board .card:contains("Review only") .labels span:contains("To review")').click()
 
@@ -473,10 +488,11 @@ describe('Board filter', function() {
 			cy.get('.filter--saved:contains("Finished or review")').should('be.visible')
 
 			cy.reload()
-			cy.get('.board .card').should('have.length', 4)
+			// the applied filter is kept after reloading
+			cy.get('.board .card').should('have.length', 3)
 			cy.get('[aria-label="Apply filter"]').click()
 			cy.get('.filter--saved-apply:contains("Finished or review")')
-				.should('have.attr', 'aria-pressed', 'false')
+				.should('have.attr', 'aria-pressed', 'true')
 				.should('contain', 'Finished or To review')
 				.click()
 
