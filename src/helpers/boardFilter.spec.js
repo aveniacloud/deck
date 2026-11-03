@@ -114,16 +114,17 @@ describe('filterParts', () => {
 	})
 
 	it('names the shown calendar period', () => {
-		expect(filterParts({ ...empty, due: 'calendarWeek', dueFrom: '2026-11-02', dueTo: '2026-11-08' }, board, 'en')[0].label).toBe('Week 45, 2026')
+		const label = (filter) => filterParts(filter, board, 'en')[0].label.replace(/\s/g, ' ')
+		expect(label({ ...empty, due: 'calendarWeek', dueFrom: '2026-11-02', dueTo: '2026-11-08' })).toBe('Week 45, 2026 · Nov 2 – 8')
 		// the ISO week of 2026-12-28 belongs to 2026, that of 2027-01-01 still to week 53 of 2026
-		expect(filterParts({ ...empty, due: 'calendarWeek', dueFrom: '2026-12-28', dueTo: '2027-01-03' }, board, 'en')[0].label).toBe('Week 53, 2026')
+		expect(label({ ...empty, due: 'calendarWeek', dueFrom: '2026-12-28', dueTo: '2027-01-03' })).toBe('Week 53, 2026 · Dec 28, 2026 – Jan 3, 2027')
 		expect(filterParts({ ...empty, due: 'calendarMonth', dueFrom: '2026-11-01', dueTo: '2026-11-30' }, board, 'en')[0].label).toBe('November 2026')
 	})
 
-	it('gives calendar periods their dates as detail', () => {
-		const part = filterParts({ ...empty, due: 'calendarWeek', dueFrom: '2026-11-02', dueTo: '2026-11-08' }, board, 'en')[0]
-		expect(part.detail.replace(/\s/g, ' ')).toBe('Nov 2 – 8, 2026')
-		expect(filterParts({ ...empty, due: 'dueWeek' }, board, 'en')[0].detail).toBeUndefined()
+	it('marks shown calendar periods as steppable', () => {
+		expect(filterParts({ ...empty, due: 'calendarWeek', dueFrom: '2026-11-02', dueTo: '2026-11-08' }, board, 'en')[0].step).toBe('week')
+		expect(filterParts({ ...empty, due: 'calendarMonth', dueFrom: '2026-11-01', dueTo: '2026-11-30' }, board, 'en')[0].step).toBe('month')
+		expect(filterParts({ ...empty, due: 'range', dueFrom: '2026-11-01', dueTo: '2026-11-30' }, board, 'en')[0].step).toBeUndefined()
 	})
 
 	it('offers the avatar of a single selected user', () => {

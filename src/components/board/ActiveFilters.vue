@@ -20,8 +20,18 @@
 			<li
 				v-for="(part, index) in parts"
 				:key="part.id"
-				:data-part-id="part.id"
-				:title="part.detail">
+				class="active-filters__item"
+				:data-part-id="part.id">
+				<NcButton
+					v-if="part.step"
+					variant="tertiary"
+					size="small"
+					:aria-label="part.step === 'week' ? t('deck', 'Previous week') : t('deck', 'Previous month')"
+					@click="stepPeriod(-1)">
+					<template #icon>
+						<ChevronLeftIcon :size="20" />
+					</template>
+				</NcButton>
 				<NcChip
 					:text="part.label"
 					:ariaLabelClose="closeLabel(part)"
@@ -36,6 +46,16 @@
 						<component :is="icons[part.kind]" v-else :size="18" />
 					</template>
 				</NcChip>
+				<NcButton
+					v-if="part.step"
+					variant="tertiary"
+					size="small"
+					:aria-label="part.step === 'week' ? t('deck', 'Next week') : t('deck', 'Next month')"
+					@click="stepPeriod(1)">
+					<template #icon>
+						<ChevronRightIcon :size="20" />
+					</template>
+				</NcButton>
 			</li>
 		</ul>
 		<!-- the explanation and its way out stay together when the row wraps -->
@@ -56,12 +76,15 @@
 </template>
 
 <script>
+import moment from '@nextcloud/moment'
 import { NcAvatar, NcButton, NcChip } from '@nextcloud/vue'
 import { mapActions, mapState } from 'pinia'
 import AccountMultipleIcon from 'vue-material-design-icons/AccountMultipleOutline.vue'
 import AccountOffIcon from 'vue-material-design-icons/AccountOffOutline.vue'
 import CalendarIcon from 'vue-material-design-icons/CalendarOutline.vue'
 import CheckCircleIcon from 'vue-material-design-icons/CheckCircleOutline.vue'
+import ChevronLeftIcon from 'vue-material-design-icons/ChevronLeft.vue'
+import ChevronRightIcon from 'vue-material-design-icons/ChevronRight.vue'
 import FilterCheckIcon from 'vue-material-design-icons/FilterCheckOutline.vue'
 import MinusCircleIcon from 'vue-material-design-icons/MinusCircleOutline.vue'
 import TagIcon from 'vue-material-design-icons/TagOutline.vue'
@@ -82,6 +105,8 @@ export default {
 		NcButton,
 		NcChip,
 		FilterCheckIcon,
+		ChevronLeftIcon,
+		ChevronRightIcon,
 	},
 
 	props: {
@@ -162,6 +187,18 @@ export default {
 			return t('deck', 'Remove filter {name}', { name })
 		},
 
+		/**
+		 * Show the previous or next calendar week or month, as the stepper in the popover does.
+		 *
+		 * @param {number} direction -1 or 1
+		 */
+		stepPeriod(direction) {
+			const unit = this.filter.due === 'calendarWeek' ? 'week' : 'month'
+			const day = moment(this.filter.dueFrom, 'YYYY-MM-DD').add(direction, unit).format('YYYY-MM-DD')
+			const { from, to } = periodAround(this.filter.due, day)
+			this.setFilterValues({ dueFrom: from, dueTo: to })
+		},
+
 		widen() {
 			const key = this.widenTo.key
 			this.setFilterValues({ [key]: 'any' })
@@ -221,6 +258,11 @@ export default {
 	align-items: center;
 	gap: var(--default-grid-baseline);
 	color: var(--color-text-maxcontrast);
+}
+
+.active-filters__item {
+	display: flex;
+	align-items: center;
 }
 
 .active-filters__list {

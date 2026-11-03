@@ -582,11 +582,25 @@ describe('Board filter', function() {
 
 			// Vue ignores events not newer than their listener, which a frozen clock guarantees
 			cy.tick(1000)
-			cy.get('[aria-label="Next week"]').click()
+			cy.get('.filter [aria-label="Next week"]').click()
 
 			cy.get('[data-cy-due-range-period]').should('contain', 'Week 45, 2026')
 			cy.get('.board .card').should('have.length', 1)
 			cy.get('.board .card:contains("Due Nov 4")').should('be.visible')
+		})
+
+		it('Steps through weeks from the period chip', function() {
+			cy.get('label[for="duePeriod"]').click()
+			cy.get('.active-filters li').should('contain', 'Week 44, 2026 · Oct 26')
+
+			// Vue ignores events not newer than their listener, which a frozen clock guarantees
+			cy.tick(1000)
+			cy.get('.active-filters [aria-label="Next week"]').click()
+
+			cy.get('.active-filters li').should('contain', 'Week 45, 2026 · Nov 2')
+			cy.get('.board .card').should('have.length', 1)
+			cy.get('.board .card:contains("Due Nov 4")').should('be.visible')
+			cy.get('[data-cy-due-range-period]').should('contain', 'Week 45, 2026')
 		})
 
 		it('Shows the period controls right below their option', function() {
@@ -606,10 +620,10 @@ describe('Board filter', function() {
 
 			// Vue ignores events not newer than their listener, which a frozen clock guarantees
 			cy.tick(1000)
-			cy.get('[aria-label="Next week"]').click()
+			cy.get('.filter [aria-label="Next week"]').click()
 
 			cy.get('.active-filters li').first().should('contain', 'Weekly')
-			cy.get('.active-filters li').should('contain', 'Week 45, 2026')
+			cy.get('.active-filters li').should('contain', 'Week 45, 2026 · Nov 2')
 
 			cy.get('[aria-label="Delete saved filter Weekly"]').click()
 			cy.wait('@saveFilters')
@@ -630,7 +644,7 @@ describe('Board filter', function() {
 			cy.get('label[for="duePeriod"]').click()
 			// Vue ignores events not newer than their listener, which a frozen clock guarantees
 			cy.tick(1000)
-			cy.get('[aria-label="Next week"]').click()
+			cy.get('.filter [aria-label="Next week"]').click()
 			cy.get('.board .card').should('have.length', 1)
 
 			cy.get('label[for="due-include-overdue"]').click()
@@ -651,7 +665,7 @@ describe('Board filter', function() {
 
 			// Vue ignores events not newer than their listener, which a frozen clock guarantees
 			cy.tick(1000)
-			cy.get('[aria-label="Next month"]').click()
+			cy.get('.filter [aria-label="Next month"]').click()
 
 			cy.get('[data-cy-due-range-period]').should('contain', 'November 2026')
 			cy.get('.board .card').should('have.length', 2)
