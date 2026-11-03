@@ -10,6 +10,7 @@
 			showSearch
 			:searchLabel="t('deck', 'Search cards')"
 			:searchHint="searchHint" />
+		<ActiveFilters v-if="board && !loading" :board="board" />
 
 		<transition name="fade" mode="out-in">
 			<div v-if="loading" key="loading" class="emptycontent">
@@ -106,6 +107,7 @@ import CardSidebar from '../card/CardSidebar.vue'
 import Controls from '../Controls.vue'
 import DeckIcon from '../icons/DeckIcon.vue'
 import GlobalSearchResults from '../search/GlobalSearchResults.vue'
+import ActiveFilters from './ActiveFilters.vue'
 import GanttView from './GanttView.vue'
 import Stack from './Stack.vue'
 import { showError } from '../../helpers/errors.js'
@@ -120,6 +122,7 @@ export default {
 	components: {
 		GlobalSearchResults,
 		Controls,
+		ActiveFilters,
 		Container,
 		DeckIcon,
 		Draggable,

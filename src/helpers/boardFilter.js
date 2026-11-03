@@ -59,6 +59,67 @@ export function filtersEqual(a, b, currentPeriod) {
 }
 
 /**
+ * The active parts of a filter, in the order they are shown as chips or in a summary.
+ * Each part knows the filter values that remove it.
+ *
+ * @param {object} filter board filter
+ * @param {object} board the board, for tag titles and user display names
+ * @param {string} locale BCP 47 locale for list and date formatting
+ * @return {Array<{id: string, kind: string, label: string, name?: string, user?: string, reset: object}>}
+ */
+export function filterParts(filter, board, locale = getCanonicalLocale()) {
+	const list = (items, type) => new Intl.ListFormat(locale, { type }).format(items)
+	const tagTitle = (id) => board.labels?.find((label) => label.id === id)?.title
+	const userName = (uid) => board.users?.find((user) => user.uid === uid)?.displayname ?? uid
+	const parts = []
+
+	const tags = (filter.tags ?? []).map(tagTitle).filter(Boolean)
+	if (tags.length > 0) {
+		parts.push({ id: 'tags', kind: 'tags', label: list(tags, filter.tagMatch === 'any' ? 'disjunction' : 'conjunction'), reset: { tags: [] } })
+	}
+
+	const users = filter.users ?? []
+	if (filter.unassigned) {
+		parts.push({ id: 'users', kind: 'unassigned', label: t('deck', 'Unassigned'), reset: { unassigned: false } })
+	} else if (users.length > 0) {
+		parts.push({
+			id: 'users',
+			kind: 'users',
+			label: list(users.map(userName), filter.userMatch === 'all' ? 'conjunction' : 'disjunction'),
+			user: users.length === 1 ? users[0] : undefined,
+			reset: { users: [] },
+		})
+	}
+
+	for (const id of filter.excludedTags ?? []) {
+		const name = tagTitle(id)
+		if (name) {
+			parts.push({ id: `hidden-tag-${id}`, kind: 'hidden', name, label: t('deck', 'Not: {name}', { name }), reset: { excludedTags: filter.excludedTags.filter((other) => other !== id) } })
+		}
+	}
+	for (const uid of filter.excludedUsers ?? []) {
+		const name = userName(uid)
+		parts.push({ id: `hidden-user-${uid}`, kind: 'hidden', name, user: uid, label: t('deck', 'Not: {name}', { name }), reset: { excludedUsers: filter.excludedUsers.filter((other) => other !== uid) } })
+	}
+
+	if (filter.completed === 'open') {
+		parts.push({ id: 'status', kind: 'status', label: t('deck', 'Open'), reset: { completed: 'both' } })
+	} else if (filter.completed === 'completed') {
+		parts.push({ id: 'status', kind: 'status', label: t('deck', 'Completed'), reset: { completed: 'both' } })
+	}
+
+	let due = describeDue(filter, locale)
+	if (due && filter.dueIncludeOverdue && (filter.due === 'range' || CALENDAR_PERIODS.includes(filter.due))) {
+		due = t('deck', '{period}, including overdue', { period: due })
+	}
+	if (due) {
+		parts.push({ id: 'due', kind: 'due', label: due, reset: { due: '', dueFrom: '', dueTo: '', dueIncludeOverdue: false } })
+	}
+
+	return parts
+}
+
+/**
  * One line describing what a filter shows, e.g. "Finished or To review · without bob · Open · Current week".
  *
  * @param {object} filter board filter
@@ -67,48 +128,44 @@ export function filtersEqual(a, b, currentPeriod) {
  * @return {string}
  */
 export function describeFilter(filter, board, locale = getCanonicalLocale()) {
-	const list = (items, type) => new Intl.ListFormat(locale, { type }).format(items)
-	const tagTitle = (id) => board.labels?.find((label) => label.id === id)?.title
-	const userName = (uid) => board.users?.find((user) => user.uid === uid)?.displayname ?? uid
-	const parts = []
-
-	const tags = (filter.tags ?? []).map(tagTitle).filter(Boolean)
-	if (tags.length > 0) {
-		parts.push(list(tags, filter.tagMatch === 'any' ? 'disjunction' : 'conjunction'))
+	const parts = filterParts(filter, board, locale)
+	const labels = parts.filter((part) => part.kind !== 'hidden').map((part) => part.label)
+	const hidden = parts.filter((part) => part.kind === 'hidden').map((part) => part.name)
+	if (hidden.length > 0) {
+		// hidden entries read as one phrase right after the selected tags and users
+		const afterSelection = parts.filter((part) => ['tags', 'users', 'unassigned'].includes(part.kind)).length
+		labels.splice(afterSelection, 0, t('deck', 'without {names}', { names: new Intl.ListFormat(locale, { type: 'conjunction' }).format(hidden) }))
 	}
+	return labels.join(' · ')
+}
 
-	const users = (filter.users ?? []).map(userName)
-	if (filter.unassigned) {
-		parts.push(t('deck', 'Unassigned'))
-	} else if (users.length > 0) {
-		parts.push(list(users, filter.userMatch === 'all' ? 'conjunction' : 'disjunction'))
-	}
+/**
+ * @param {string} value day as YYYY-MM-DD
+ * @return {Date} that day at local midnight
+ */
+function toDay(value) {
+	const [year, month, date] = value.split('-').map(Number)
+	return new Date(year, month - 1, date)
+}
 
-	const excluded = [...(filter.excludedTags ?? []).map(tagTitle), ...(filter.excludedUsers ?? []).map(userName)].filter(Boolean)
-	if (excluded.length > 0) {
-		parts.push(t('deck', 'without {names}', { names: list(excluded, 'conjunction') }))
-	}
-
-	if (filter.completed === 'open') {
-		parts.push(t('deck', 'Open'))
-	} else if (filter.completed === 'completed') {
-		parts.push(t('deck', 'Completed'))
-	}
-
-	const due = describeDue(filter, locale)
-	if (due && filter.dueIncludeOverdue && (filter.due === 'range' || CALENDAR_PERIODS.includes(filter.due))) {
-		parts.push(t('deck', '{period}, including overdue', { period: due }))
-	} else if (due) {
-		parts.push(due)
-	}
-
-	return parts.join(' · ')
+/**
+ * @param {string} value day as YYYY-MM-DD
+ * @return {{week: number, year: number}} ISO week (Monday to Sunday) containing the day
+ */
+function isoWeek(value) {
+	const [year, month, date] = value.split('-').map(Number)
+	const day = new Date(Date.UTC(year, month - 1, date))
+	// the Thursday of the week decides which year it belongs to
+	day.setUTCDate(day.getUTCDate() + 4 - (day.getUTCDay() || 7))
+	const yearStart = new Date(Date.UTC(day.getUTCFullYear(), 0, 1))
+	return { week: Math.ceil(((day - yearStart) / 86400000 + 1) / 7), year: day.getUTCFullYear() }
 }
 
 /**
  * @param {object} filter board filter
  * @param {string} locale BCP 47 locale
- * @return {string} the due date part of a filter description, empty without a due date filter
+ * @return {string} the due date part of a filter description, empty without a due date filter.
+ * Calendar periods with dates name the period; without dates (as saved) they mean the current one.
  */
 function describeDue(filter, locale) {
 	switch (filter.due) {
@@ -123,23 +180,21 @@ function describeDue(filter, locale) {
 		case 'noDue':
 			return t('deck', 'No due date')
 		case 'calendarWeek':
-			return t('deck', 'Current week')
+			return filter.dueFrom ? t('deck', 'Week {week}, {year}', isoWeek(filter.dueFrom)) : t('deck', 'Current week')
 		case 'calendarMonth':
-			return t('deck', 'Current month')
+			return filter.dueFrom
+				? new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(toDay(filter.dueFrom))
+				: t('deck', 'Current month')
 		case 'range': {
 			const format = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' })
-			const day = (value) => {
-				const [year, month, date] = value.split('-').map(Number)
-				return new Date(year, month - 1, date)
-			}
 			if (filter.dueFrom && filter.dueTo) {
-				return format.formatRange(day(filter.dueFrom), day(filter.dueTo))
+				return format.formatRange(toDay(filter.dueFrom), toDay(filter.dueTo))
 			}
 			if (filter.dueFrom) {
-				return t('deck', 'Due from {date}', { date: format.format(day(filter.dueFrom)) })
+				return t('deck', 'Due from {date}', { date: format.format(toDay(filter.dueFrom)) })
 			}
 			if (filter.dueTo) {
-				return t('deck', 'Due until {date}', { date: format.format(day(filter.dueTo)) })
+				return t('deck', 'Due until {date}', { date: format.format(toDay(filter.dueTo)) })
 			}
 			return t('deck', 'With a due date')
 		}

@@ -282,6 +282,55 @@ describe('Board filter', function() {
 		})
 	})
 
+	describe('Active filter chips', function() {
+		beforeEach(function() {
+			cy.login(user)
+			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
+			cy.get('.board .card').should('have.length', 4)
+		})
+
+		it('Shows no chips without a filter', function() {
+			cy.get('.active-filters').should('not.exist')
+		})
+
+		it('Shows the filter as chips and removes it from there', function() {
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('.filter label:contains("Finished")').click()
+			cy.get('.filter label:contains("To review")').click()
+			cy.get('[aria-label="Hide cards with tag Action needed"]').click()
+
+			cy.get('.active-filters li').should('have.length', 2)
+			cy.get('.active-filters li').eq(0).should('contain', 'Finished and To review')
+			cy.get('.active-filters li').eq(1).should('contain', 'Not: Action needed')
+
+			cy.get('[aria-label="Remove filter Finished and To review"]').click()
+
+			cy.get('.active-filters li').should('have.length', 1)
+			cy.get('.filter label:contains("Finished")').parent().find('input').should('not.be.checked')
+			cy.get('.board .card').should('have.length', 3)
+		})
+
+		it('Clears everything from the chip bar', function() {
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('.filter label:contains("Finished")').click()
+			cy.get('label[for="filter-option-open"]').click()
+
+			cy.get('.active-filters button:contains("Clear filter")').click()
+
+			cy.get('.active-filters').should('not.exist')
+			cy.get('.board .card').should('have.length', 4)
+			cy.get('#filter-option-both').should('be.checked')
+		})
+
+		it('Ticks a tag in the popover after clicking it on a card', function() {
+			cy.get('.board .card:contains("Review only") .labels span:contains("To review")').click()
+
+			cy.get('.active-filters li').should('contain', 'To review')
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('.filter label:contains("To review")').parent().find('input').should('be.checked')
+		})
+	})
+
 	describe('Hiding tags and users', function() {
 		it('Hides cards that carry a hidden tag', function() {
 			cy.login(user)
@@ -374,6 +423,7 @@ describe('Board filter', function() {
 			cy.get('.board .card').should('have.length', 3)
 			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
 			cy.get('.filter--saved-apply:contains("Finished or review")').should('have.attr', 'aria-pressed', 'true')
+			cy.get('.active-filters li').first().should('contain', 'Finished or review')
 
 			// changing the filter means the saved one no longer applies
 			chooseMatch('tags-all')

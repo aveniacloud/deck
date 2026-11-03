@@ -588,8 +588,6 @@ export default {
 			announceTimeout: null,
 			skipAnnouncement: false,
 			savedFilterName: '',
-			// saved filters as last stored, until another board is opened
-			savedFiltersLocal: null,
 			defaultPageTitle: false,
 			isNotifyPushEnabled: isNotifyPushEnabled(),
 		}
@@ -628,7 +626,7 @@ export default {
 		},
 
 		savedFilters() {
-			return this.savedFiltersLocal ?? this.board?.settings?.savedFilters ?? []
+			return this.board?.settings?.savedFilters ?? []
 		},
 
 		savedFilterRows() {
@@ -677,14 +675,17 @@ export default {
 		'board.id': function() {
 			// opening another board resets the filter; that is not a result worth announcing
 			this.skipAnnouncement = true
-			this.savedFiltersLocal = null
 			this.isSavingFilter = false
 			this.clearFilter()
 		},
 
 		storeFilter: {
 			deep: true,
-			handler() {
+			handler(storeFilter) {
+				// the filter can also change outside the popover (filter chips, clicking a tag on a card)
+				if (JSON.stringify(storeFilter) !== JSON.stringify(this.filter)) {
+					this.filter = JSON.parse(JSON.stringify(storeFilter))
+				}
 				if (this.skipAnnouncement) {
 					this.skipAnnouncement = false
 					return
@@ -724,7 +725,7 @@ export default {
 	},
 
 	methods: {
-		...mapActions(useBoardStore, { setViewMode: 'setViewMode', toggleShowArchived: 'toggleShowArchived', setFilterInStore: 'setFilterInStore' }),
+		...mapActions(useBoardStore, { setViewMode: 'setViewMode', toggleShowArchived: 'toggleShowArchived', setFilterInStore: 'setFilterInStore', setCurrentBoardSetting: 'setCurrentBoardSetting' }),
 		...mapActions(useStackStore, ['createStack']),
 		...mapActions(useSettingsStore, {
 			setSearchQuery: 'setSearchQuery',
@@ -771,11 +772,11 @@ export default {
 
 		async storeSavedFilters(savedFilters) {
 			const previous = this.savedFilters
-			this.savedFiltersLocal = savedFilters
+			this.setCurrentBoardSetting('savedFilters', savedFilters)
 			try {
 				await this.setConfig({ [`board:${this.board.id}:savedFilters`]: savedFilters })
 			} catch (e) {
-				this.savedFiltersLocal = previous
+				this.setCurrentBoardSetting('savedFilters', previous)
 				showError(t('deck', 'The saved filters could not be updated'))
 				throw e
 			}

@@ -176,6 +176,26 @@ export const useBoardStore = defineStore('board', {
 		setFilterInStore(filter) {
 			Object.assign(this.filter, filter)
 		},
+		/**
+		 * Change single filter values, e.g. when an active filter chip is removed.
+		 * Pass new arrays rather than mutating the existing ones.
+		 *
+		 * @param {object} values filter keys to replace
+		 */
+		setFilterValues(values) {
+			Object.assign(this.filter, values)
+		},
+		/**
+		 * Update a per-user setting of the open board locally, e.g. after storing it through the config API.
+		 *
+		 * @param {string} key setting name as in board.settings
+		 * @param {string|boolean|object[]} value new value
+		 */
+		setCurrentBoardSetting(key, value) {
+			if (this.currentBoard) {
+				this.currentBoard.settings = { ...this.currentBoard.settings, [key]: value }
+			}
+		},
 		toggleShowArchived(newState = undefined) {
 			this.showArchived = newState !== undefined ? newState : !this.showArchived
 		},

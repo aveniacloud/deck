@@ -91,6 +91,8 @@ The **Activity** allows you to see everything that happened in your boards. Ever
 #### Filter cards
 The filter button next to the search field narrows the board down to the cards you are interested in. You can filter by tag, by assigned user, by status and by due date, and combine these filters.
 
+While a filter is active, it is shown as chips below the board title, for example "HRS or GMA", "Not: bob", "Open" or "Week 45, 2026". Remove a single part of the filter with the cross on its chip, or everything with **Clear filter** next to the chips. When the filter matches one of your saved filters, its name is shown as the first chip.
+
 Below the "Filter by tag" heading, **Any tag | All tags** decides whether a card needs any or all of the selected tags to be shown; it becomes available once you select two or more tags. By default a card needs all of them. **Any user | All users** below "Filter by assigned user" does the same for users, where any of them is enough by default. Your choice is remembered for each board in your browser, also when you clear the filter.
 
 To leave cards out instead, use the minus button at the end of a tag or user. Cards carrying that tag, or assigned to that user, are hidden, whatever else is selected. Click the button again, or select the tag or user, to stop hiding them.

@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from '@jest/globals'
-import { describeFilter, filtersEqual } from './boardFilter.js'
+import { describeFilter, filterParts, filtersEqual } from './boardFilter.js'
 
 const board = {
 	labels: [
@@ -89,5 +89,33 @@ describe('filtersEqual', () => {
 
 	it('treats missing keys of older saved filters as their defaults', () => {
 		expect(filtersEqual({ tags: [1], completed: 'open' }, { ...empty, tags: [1], completed: 'open' }, currentPeriod)).toBe(true)
+	})
+})
+
+describe('filterParts', () => {
+	it('gives every part the values that remove it', () => {
+		const filter = { ...empty, tags: [1, 2], tagMatch: 'any', excludedTags: [3], excludedUsers: ['bob', 'alice'], completed: 'open', due: 'dueWeek' }
+		const parts = filterParts(filter, board, 'en')
+		expect(parts.map((part) => part.label)).toEqual(['Finished or To review', 'Not: Later', 'Not: Bob', 'Not: Alice', 'Open', 'Next 7 days'])
+		expect(parts[0].reset).toEqual({ tags: [] })
+		expect(parts[2].reset).toEqual({ excludedUsers: ['alice'] })
+		expect(parts[4].reset).toEqual({ completed: 'both' })
+		expect(parts[5].reset).toEqual({ due: '', dueFrom: '', dueTo: '', dueIncludeOverdue: false })
+	})
+
+	it('names the shown calendar period', () => {
+		expect(filterParts({ ...empty, due: 'calendarWeek', dueFrom: '2026-11-02', dueTo: '2026-11-08' }, board, 'en')[0].label).toBe('Week 45, 2026')
+		// the ISO week of 2026-12-28 belongs to 2026, that of 2027-01-01 still to week 53 of 2026
+		expect(filterParts({ ...empty, due: 'calendarWeek', dueFrom: '2026-12-28', dueTo: '2027-01-03' }, board, 'en')[0].label).toBe('Week 53, 2026')
+		expect(filterParts({ ...empty, due: 'calendarMonth', dueFrom: '2026-11-01', dueTo: '2026-11-30' }, board, 'en')[0].label).toBe('November 2026')
+	})
+
+	it('offers the avatar of a single selected user', () => {
+		expect(filterParts({ ...empty, users: ['alice'] }, board, 'en')[0]).toMatchObject({ kind: 'users', user: 'alice', label: 'Alice' })
+		expect(filterParts({ ...empty, users: ['alice', 'bob'] }, board, 'en')[0].user).toBeUndefined()
+	})
+
+	it('is empty without a filter', () => {
+		expect(filterParts(empty, board, 'en')).toEqual([])
 	})
 })
