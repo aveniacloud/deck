@@ -228,7 +228,7 @@
 									<label for="unassigned">{{ t('deck', 'Unassigned') }}</label>
 								</div>
 								<div
-									v-for="user in board.users"
+									v-for="user in usersSorted"
 									:key="user.uid"
 									class="filter--item filter--item-excludable"
 									:class="{ 'filter--item-excluded': filter.excludedUsers.includes(user.uid) }">
@@ -243,7 +243,7 @@
 										:user="user.uid"
 										:size="24"
 										:disableMenu="true"
-										:hideStatus="true" /> {{ user.displayname }}</label>
+										:hideStatus="true" /> {{ user.uid === currentUserId ? t('deck', '{name} (you)', { name: user.displayname }) : user.displayname }}</label>
 									<NcButton
 										class="filter--hide"
 										variant="tertiary"
@@ -694,6 +694,15 @@ export default {
 
 		labelsSorted() {
 			return [...this.board.labels].sort((a, b) => (a.title < b.title) ? -1 : 1)
+		},
+
+		currentUserId() {
+			return getCurrentUser()?.uid
+		},
+
+		usersSorted() {
+			// filtering for one's own cards is the most common user filter, so offer it first
+			return [...this.board.users].sort((a, b) => (b.uid === this.currentUserId) - (a.uid === this.currentUserId))
 		},
 
 		presentUsers() {

@@ -97,7 +97,7 @@ A chip for a calendar week or month shows its dates and has arrows to move to th
 
 If no card matches, the chips say so. When several tags or users are combined with **All**, a button next to them shows the cards with any of them instead.
 
-Once you select two or more tags, **Any | All** appears next to the "Tags" heading and decides whether a card needs any or all of them to be shown. By default a card needs all of them. Next to "Assigned to", **Any | All** does the same for users, where any of them is enough by default. Your choice is remembered for each board in your browser, also when you clear the filter.
+Once you select two or more tags, **Any | All** appears next to the "Tags" heading and decides whether a card needs any or all of them to be shown. By default a card needs all of them. Under "Assigned to" you are listed first, marked "(you)", to quickly show your own cards. Next to "Assigned to", **Any | All** does the same for users, where any of them is enough by default. Your choice is remembered for each board in your browser, also when you clear the filter.
 
 To leave cards out instead, use the minus button at the end of a tag or user; it appears when you point at the row or move the keyboard focus to it. Cards carrying that tag, or assigned to that user, are hidden, whatever else is selected. Click the button again, or select the tag or user, to stop hiding them.
 

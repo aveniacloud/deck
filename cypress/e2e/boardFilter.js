@@ -267,6 +267,10 @@ describe('Board filter', function() {
 			cy.get('input[data-cy-match="users-any"]').should('be.checked')
 		})
 
+		it('Lists the current user first, marked as such', function() {
+			cy.get('#unassigned').parent().next().should('contain', `${user.userId} (you)`)
+		})
+
 		it('Shows cards assigned to any selected user by default', function() {
 			cy.get(`label[for="${bob.userId}"]`).click()
 
