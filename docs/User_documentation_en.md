@@ -93,6 +93,8 @@ The filter button next to the search field narrows the board down to the cards y
 
 While a filter is active, it is shown as chips below the board title, for example "HRS or GMA", "Not: bob", "Open" or "Week 45, 2026". Remove a single part of the filter with the cross on its chip, or everything with **Clear filter** next to the chips. When the filter matches one of your saved filters, its name is shown as the first chip.
 
+If no card matches, the chips say so. When several tags or users are combined with **All**, a button next to them shows the cards with any of them instead.
+
 Once you select two or more tags, **Any | All** appears next to the "Tags" heading and decides whether a card needs any or all of them to be shown. By default a card needs all of them. Next to "Assigned to", **Any | All** does the same for users, where any of them is enough by default. Your choice is remembered for each board in your browser, also when you clear the filter.
 
 To leave cards out instead, use the minus button at the end of a tag or user; it appears when you point at the row or move the keyboard focus to it. Cards carrying that tag, or assigned to that user, are hidden, whatever else is selected. Click the button again, or select the tag or user, to stop hiding them.

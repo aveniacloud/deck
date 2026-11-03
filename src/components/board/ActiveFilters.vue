@@ -34,6 +34,16 @@
 				</NcChip>
 			</li>
 		</ul>
+		<p v-if="noCardsMatch" class="active-filters__empty">
+			{{ t('deck', 'No cards match.') }}
+		</p>
+		<NcButton
+			v-if="noCardsMatch && widenTo"
+			variant="tertiary"
+			size="small"
+			@click="widen">
+			{{ widenTo.label }}
+		</NcButton>
 		<NcButton variant="tertiary" size="small" @click="clearFilter()">
 			{{ t('deck', 'Clear filter') }}
 		</NcButton>
@@ -52,7 +62,8 @@ import MinusCircleIcon from 'vue-material-design-icons/MinusCircleOutline.vue'
 import TagIcon from 'vue-material-design-icons/TagOutline.vue'
 import { periodAround } from '../DueDateRangeFilter.vue'
 import { filterParts, filtersEqual } from '../../helpers/boardFilter.js'
-import { emptyFilter, useBoardStore } from '../../stores/board.js'
+import { emptyFilter, rememberMatchModes, useBoardStore } from '../../stores/board.js'
+import { useCardStore } from '../../stores/card.js'
 
 /**
  * The active board filter as removable chips below the board header, following the
@@ -95,6 +106,29 @@ export default {
 			return filterParts(this.filter, this.board)
 		},
 
+		noCardsMatch() {
+			// a board without any cards or one still loading is not a filter result
+			const cardStore = useCardStore()
+			return cardStore.cardCountOnBoard(this.board.id) === 0
+				&& cardStore.cardCountOnBoard(this.board.id, { filtered: false }) > 0
+		},
+
+		/**
+		 * When "all" of several tags or users is the likely reason for an empty result,
+		 * offer to switch to "any" of them. The default is not changed.
+		 *
+		 * @return {{key: string, label: string}|null}
+		 */
+		widenTo() {
+			if (this.filter.tags.length > 1 && this.filter.tagMatch !== 'any') {
+				return { key: 'tagMatch', label: t('deck', 'Show cards with any of these tags') }
+			}
+			if (this.filter.users.length > 1 && this.filter.userMatch === 'all') {
+				return { key: 'userMatch', label: t('deck', 'Show cards assigned to any of these users') }
+			}
+			return null
+		},
+
 		activeView() {
 			// a saved calendar week or month stays recognised while stepping to other weeks or months
 			return (this.board.settings?.savedFilters ?? []).find((saved) => filtersEqual(this.filter, saved.filter, periodAround, { anyPeriod: true }))
@@ -108,6 +142,11 @@ export default {
 		 * @param {object} part entry of filterParts()
 		 * @param {number} index position of its chip, to keep keyboard focus nearby
 		 */
+		widen() {
+			this.setFilterValues({ [this.widenTo.key]: 'any' })
+			rememberMatchModes(this.board.id, this.filter)
+		},
+
 		removePart(part, index) {
 			this.setFilterValues(part.reset)
 			this.focusChip(index)
@@ -145,6 +184,11 @@ export default {
 	align-items: center;
 	gap: var(--default-grid-baseline) calc(2 * var(--default-grid-baseline));
 	padding: 0 $board-gap calc(2 * var(--default-grid-baseline));
+}
+
+.active-filters__empty {
+	margin: 0;
+	color: var(--color-text-maxcontrast);
 }
 
 .active-filters__list {

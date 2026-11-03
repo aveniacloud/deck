@@ -206,6 +206,20 @@ export const useCardStore = defineStore('card', {
 				})
 				.sort((a, b) => a.order - b.order || a.createdAt - b.createdAt)
 		},
+		/**
+		 * @param state
+		 * @return {(boardId: number, options?: {filtered?: boolean}) => number} number of cards the board shows,
+		 * respecting whether archived cards are shown; with filtered: false, ignoring the filter and search
+		 */
+		cardCountOnBoard(state) {
+			return (boardId, { filtered = true } = {}) => {
+				const showArchived = useBoardStore().showArchived
+				return useStackStore().stacksByBoard(boardId).reduce((count, stack) => {
+					const cards = filtered ? this.cardsByStack(stack.id) : state.cards.filter((card) => card.stackId === stack.id)
+					return count + cards.filter((card) => !!card.archived === showArchived).length
+				}, 0)
+			}
+		},
 		cardById: (state) => (id) => {
 			return state.cards.find((card) => card.id === id)
 		},

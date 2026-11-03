@@ -339,6 +339,23 @@ describe('Board filter', function() {
 			cy.get('#filter-option-both').should('be.checked')
 		})
 
+		it('Explains an empty result and offers to widen "all" to "any"', function() {
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('.filter label:contains("Finished")').click()
+			cy.get('.active-filters__empty').should('not.exist')
+			cy.get('.filter label:contains("Finished")').click()
+			cy.get('.filter label:contains("To review")').click()
+			cy.get('.filter label:contains("Action needed")').click()
+
+			cy.get('.board .card').should('have.length', 0)
+			cy.get('.active-filters__empty').should('contain', 'No cards match')
+			cy.get('.active-filters button:contains("Show cards with any of these tags")').click()
+
+			cy.get('.board .card').should('have.length', 3)
+			cy.get('.active-filters__empty').should('not.exist')
+			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
+		})
+
 		it('Ticks a tag in the popover after clicking it on a card', function() {
 			cy.get('.board .card:contains("Review only") .labels span:contains("To review")').click()
 

@@ -672,9 +672,7 @@ export default {
 		},
 
 		visibleCardCount() {
-			const cardStore = useCardStore()
-			return useStackStore().stacksByBoard(this.board.id)
-				.reduce((count, stack) => count + cardStore.cardsByStack(stack.id).filter((card) => !!card.archived === this.showArchived).length, 0)
+			return useCardStore().cardCountOnBoard(this.board.id)
 		},
 
 		dueRangeOptions() {
