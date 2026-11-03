@@ -202,6 +202,13 @@ describe('Board filter', function() {
 			cy.get('p.hidden-visually[aria-live]').should('contain', '2 cards shown')
 		})
 
+		it('Returns focus to the filter button when the popover is closed with Escape', function() {
+			cy.focused().type('{esc}')
+
+			cy.get('.filter').should('not.be.visible')
+			cy.focused().should('have.attr', 'aria-label', 'Apply filter')
+		})
+
 		it('Keeps focus in the popover after clearing the filter', function() {
 			cy.get('.filter button:contains("Clear filter")').click()
 
@@ -354,6 +361,7 @@ describe('Board filter', function() {
 
 			cy.get('.board .card').should('have.length', 3)
 			cy.get('.active-filters__empty').should('not.exist')
+			cy.focused().should('have.attr', 'aria-label', 'Remove filter Tags: To review or Action needed')
 			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
 		})
 

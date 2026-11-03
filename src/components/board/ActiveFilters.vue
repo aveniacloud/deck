@@ -6,7 +6,7 @@
 <template>
 	<div v-if="parts.length > 0" ref="bar" class="active-filters">
 		<ul class="active-filters__list" :aria-label="t('deck', 'Active filters')">
-			<li v-if="activeView">
+			<li v-if="activeView" data-part-id="view">
 				<NcChip
 					:text="activeView.name"
 					variant="primary"
@@ -17,11 +17,15 @@
 					</template>
 				</NcChip>
 			</li>
-			<li v-for="(part, index) in parts" :key="part.id" :title="part.detail">
+			<li
+				v-for="(part, index) in parts"
+				:key="part.id"
+				:data-part-id="part.id"
+				:title="part.detail">
 				<NcChip
 					:text="part.label"
 					:ariaLabelClose="closeLabel(part)"
-					@close="removePart(part, index + (activeView ? 1 : 0))">
+					@close="removePart(part, index)">
 					<template #icon>
 						<NcAvatar
 							v-if="part.kind === 'users' && part.user"
@@ -140,10 +144,6 @@ export default {
 		...mapActions(useBoardStore, ['setFilterValues']),
 
 		/**
-		 * @param {object} part entry of filterParts()
-		 * @param {number} index position of its chip, to keep keyboard focus nearby
-		 */
-		/**
 		 * The chip text alone ("Open") lacks context for screen readers, so name the facet as well.
 		 *
 		 * @param {object} part entry of filterParts()
@@ -163,31 +163,40 @@ export default {
 		},
 
 		widen() {
-			this.setFilterValues({ [this.widenTo.key]: 'any' })
+			const key = this.widenTo.key
+			this.setFilterValues({ [key]: 'any' })
 			rememberMatchModes(this.board.id, this.filter)
+			// the button disappears with the empty result, so keep focus on the chip it changed
+			this.focusChip(key === 'tagMatch' ? 'tags' : 'users')
 		},
 
+		/**
+		 * @param {object} part entry of filterParts()
+		 * @param {number} index its position in parts
+		 */
 		removePart(part, index) {
+			// chips may disappear together (the saved filter chip with the last matching part),
+			// so aim at a neighbour by id rather than by position
+			const neighbour = this.parts[index + 1] ?? this.parts[index - 1]
 			this.setFilterValues(part.reset)
-			this.focusChip(index)
+			this.focusChip(neighbour?.id)
 		},
 
 		clearFilter() {
 			this.setFilterValues(emptyFilter(this.board.id))
-			this.focusChip(0)
+			this.focusChip(null)
 		},
 
 		/**
-		 * Keep focus near a removed chip: on the chip now at its position, the one before, or,
-		 * once no chip is left and the bar is gone, on the filter button that opens the filter.
+		 * Move focus to the close button of a chip after the next render or, when that chip is
+		 * gone (or no id is given), to the filter button that opens the filter.
 		 *
-		 * @param {number} index position of the removed chip
+		 * @param {string|null} partId id of the chip, as in filterParts()
 		 */
-		focusChip(index) {
+		focusChip(partId) {
 			this.$nextTick(() => {
-				const closeButtons = this.$refs.bar?.querySelectorAll('li button') ?? []
-				const target = closeButtons[Math.min(index, closeButtons.length - 1)]
-					?? document.querySelector('.board-action-buttons__filter .filter-button')
+				const target = (partId && this.$refs.bar?.querySelector(`li[data-part-id="${partId}"] button`))
+					|| document.querySelector('.board-action-buttons__filter .filter-button')
 				target?.focus()
 			})
 		},

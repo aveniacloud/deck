@@ -93,7 +93,8 @@
 						noFocusTrap
 						:aria-label="t('deck', 'Filter cards')"
 						:name="t('deck', 'Filter cards')"
-						@afterShow="focusFilterOnOpen">
+						@afterShow="focusFilterOnOpen"
+						@afterHide="returnFocusOnClose">
 						<!-- We cannot use NcActions here as we can't style NcActionCheckbox labels dynamically -->
 						<template #trigger>
 							<NcButton
@@ -853,6 +854,14 @@ export default {
 			// the popover reports being shown only after its transition; by then the user may already be working in it
 			if (!this.$refs.filterContent?.contains(document.activeElement)) {
 				this.focusFirstFilterControl()
+			}
+		},
+
+		returnFocusOnClose() {
+			// without a focus trap the popover does not return focus itself, e.g. after Escape
+			const active = document.activeElement
+			if (!active || active === document.body || this.$refs.filterContent?.contains(active)) {
+				this.$refs.filterPopover?.$el.focus()
 			}
 		},
 
