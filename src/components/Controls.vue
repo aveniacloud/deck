@@ -1301,6 +1301,10 @@ export default {
 
 	// hide buttons only take attention where a pointer can reveal them; touch screens keep showing them
 	@media (hover: hover) {
+		.filter--item-excludable .filter--hide {
+			transition: opacity var(--animation-quick) ease-out;
+		}
+
 		.filter--item-excludable .filter--hide:not([aria-pressed='true']) {
 			opacity: 0;
 		}
@@ -1308,6 +1312,12 @@ export default {
 		.filter--item-excludable:hover .filter--hide,
 		.filter--item-excludable:focus-within .filter--hide {
 			opacity: 1;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.filter--item-excludable .filter--hide {
+			transition: none;
 		}
 	}
 

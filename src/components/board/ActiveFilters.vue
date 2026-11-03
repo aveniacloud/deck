@@ -34,16 +34,17 @@
 				</NcChip>
 			</li>
 		</ul>
-		<p v-if="noCardsMatch" class="active-filters__empty">
-			{{ t('deck', 'No cards match.') }}
-		</p>
-		<NcButton
-			v-if="noCardsMatch && widenTo"
-			variant="tertiary"
-			size="small"
-			@click="widen">
-			{{ widenTo.label }}
-		</NcButton>
+		<!-- the explanation and its way out stay together when the row wraps -->
+		<div v-if="noCardsMatch" class="active-filters__empty">
+			<span>{{ t('deck', 'No cards match.') }}</span>
+			<NcButton
+				v-if="widenTo"
+				variant="tertiary"
+				size="small"
+				@click="widen">
+				{{ widenTo.label }}
+			</NcButton>
+		</div>
 		<NcButton variant="tertiary" size="small" @click="clearFilter()">
 			{{ t('deck', 'Clear filter') }}
 		</NcButton>
@@ -206,7 +207,10 @@ export default {
 }
 
 .active-filters__empty {
-	margin: 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--default-grid-baseline);
 	color: var(--color-text-maxcontrast);
 }
 
