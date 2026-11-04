@@ -114,8 +114,7 @@ const otherBoard = {
 }
 
 describe('Board filter', function() {
-	// below 768px of board width the filter is one popover with a page per facet; the filter bar of
-	// wider boards has its own tests at the end
+	// a narrow window, where the popover covers part of the board; wide windows have their own tests at the end
 	beforeEach(function() {
 		cy.viewport(740, 720)
 	})
@@ -831,7 +830,7 @@ describe('Board filter', function() {
 		})
 	})
 
-	describe('Filter bar of wide boards', function() {
+	describe('Filter chips on wide boards', function() {
 		beforeEach(function() {
 			cy.viewport(1280, 720)
 			cy.login(user)
@@ -839,78 +838,35 @@ describe('Board filter', function() {
 			cy.get('.board .card').should('have.length', 4)
 		})
 
-		it('Is shown and hidden by the filter button', function() {
-			cy.get('#deck-filter-bar').should('not.exist')
-
+		it('Uses the same filter menu as narrow boards', function() {
 			cy.get('[aria-label="Apply filter"]').click()
-
-			cy.get('[aria-label="Apply filter"]').should('have.attr', 'aria-expanded', 'true')
-			cy.get('#deck-filter-bar [data-cy-bar-menu]').should('have.length', 5)
-			cy.focused().should('have.attr', 'data-cy-bar-menu', 'saved')
-
-			cy.get('[aria-label="Apply filter"]').click()
-			cy.get('#deck-filter-bar').should('not.exist')
-			cy.get('[aria-label="Apply filter"]').should('have.attr', 'aria-expanded', 'false')
+			cy.get('.filter [data-cy-facet]').should('have.length', 4)
+			cy.get('.active-filters').should('not.exist')
 		})
 
-		it('Has a menu per facet and shows its value on the button', function() {
+		it('Opens the filter menu at the part of a chip and returns to the chip', function() {
 			cy.get('[aria-label="Apply filter"]').click()
-			cy.get('[data-cy-bar-menu="tags"]').click()
-			cy.get('[data-cy-facet-view="tags"] label:contains("Finished")').click()
-
-			cy.get('.board .card').should('have.length', 2)
-			cy.get('[data-cy-bar-menu="tags"]').should('contain', 'Tags: Finished')
-
-			// one click moves on to the next menu
-			cy.get('[data-cy-bar-menu="status"]').click()
-			cy.get('[data-cy-facet-view="tags"]').should('not.exist')
-			cy.focused().should('have.id', 'filter-option-both')
-			cy.get('label[for="filter-option-open"]').click()
-
-			// a single choice closes its menu
-			cy.get('[data-cy-facet-view="status"]').should('not.exist')
-			cy.focused().should('have.attr', 'data-cy-bar-menu', 'status')
-			cy.get('[data-cy-bar-menu="status"]').should('contain', 'Status: Open')
-		})
-
-		it('Removes a facet and keeps the bar until it is hidden', function() {
-			cy.get('[aria-label="Apply filter"]').click()
-			cy.get('[data-cy-bar-menu="tags"]').click()
-			cy.get('[data-cy-facet-view="tags"] label:contains("Finished")').click()
+			openFacet('tags')
+			cy.get('.filter label:contains("Finished")').click()
 			cy.get('[aria-label="Hide cards with tag Action needed"]').click()
-			cy.get('.board .card').should('have.length', 1)
-			cy.get('body').type('{esc}')
-
-			cy.get('[aria-label="Remove filter Tags: Finished · Not: Action needed"]').click()
-
-			cy.get('.board .card').should('have.length', 4)
-			cy.get('#deck-filter-bar').should('exist')
-			cy.focused().should('have.attr', 'data-cy-bar-menu', 'tags')
-			cy.get('[data-cy-bar-menu="tags"]').should('not.contain', ':')
-		})
-
-		it('Saves and applies filters from its saved filters menu', function() {
+			backToFilters()
+			openFacet('status')
+			cy.get('label[for="filter-option-open"]').click()
 			cy.get('[aria-label="Apply filter"]').click()
-			cy.get('[data-cy-bar-menu="tags"]').click()
-			cy.get('[data-cy-facet-view="tags"] label:contains("To review")').click()
-			cy.get('[data-cy-bar-menu="saved"]').click()
-			cy.get('.saved-filters button:contains("Save filter")').click()
-			cy.focused().type('Reviews')
-			cy.intercept('POST', '**/config/board:*:savedFilters').as('saveFilters')
-			cy.get('.saved-filters button[type="submit"]').click()
-			cy.wait('@saveFilters')
+			cy.get('.filter').should('not.exist')
 
-			cy.get('[data-cy-bar-menu="saved"]').should('contain', 'Reviews')
-			cy.get('#deck-filter-bar button:contains("Clear filter")').click()
-			cy.get('.board .card').should('have.length', 4)
-			cy.get('[data-cy-bar-menu="saved"]').should('contain', 'Saved filters').click()
-			cy.get('.filter--saved-apply:contains("Reviews")').click()
+			cy.get('[aria-label="Change filter Status: Open"]').click()
+			cy.get('[data-cy-facet-view="status"]').should('be.visible')
+			cy.focused().should('have.id', 'filter-option-open')
+			cy.get('body').type('{esc}')
+			cy.get('.filter').should('not.exist')
+			cy.focused().should('have.attr', 'aria-label', 'Change filter Status: Open')
 
-			cy.get('.board .card').should('have.length', 2)
-			cy.get('[data-cy-bar-menu="saved"]').should('contain', 'Reviews')
-			cy.get('[data-cy-bar-menu="saved"]').click()
-			cy.get('[aria-label="Delete saved filter Reviews"]').click()
-			cy.wait('@saveFilters')
+			// a hidden tag belongs to the tags, and a click on another chip switches the open menu
+			cy.get('[aria-label="Change filter Tags: Finished"]').click()
+			cy.get('[data-cy-facet-view="tags"]').should('be.visible')
+			cy.get('[aria-label="Change filter Not: Action needed"]').click()
+			cy.get('[data-cy-facet-view="tags"]').should('be.visible')
 		})
 	})
 

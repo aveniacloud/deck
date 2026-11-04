@@ -5,120 +5,26 @@
 
 <template>
 	<div
-		v-if="shown"
-		id="deck-filter-bar"
+		v-if="parts.length > 0"
 		ref="bar"
-		class="active-filters"
-		:class="{ 'active-filters--bar': filterBarFits }">
-		<!-- wide boards: one menu per facet, like the filters of Files; the buttons show the filter -->
-		<ul v-if="filterBarFits" class="active-filters__list" :aria-label="t('deck', 'Filter cards')">
-			<li data-part-id="saved" class="active-filters__item">
-				<NcPopover
-					:shown="openMenu === 'saved'"
-					placement="bottom-start"
-					:aria-label="t('deck', 'Saved filters')"
-					noFocusTrap
-					@update:shown="(shown) => setMenu('saved', shown)"
-					@afterShow="focusMenu('saved')"
-					@afterHide="onMenuHidden('saved')">
-					<template #trigger>
-						<NcButton
-							:variant="activeView ? 'secondary' : 'tertiary'"
-							data-cy-bar-menu="saved"
-							:title="activeView ? t('deck', 'Saved filter {name}', { name: activeView.name }) : null">
-							<template #icon>
-								<BookmarkCheckIcon v-if="activeView" :size="20" />
-								<BookmarkIcon v-else :size="20" />
-							</template>
-							<span class="active-filters__label">{{ activeView ? activeView.name : t('deck', 'Saved filters') }}</span>
-						</NcButton>
-					</template>
-					<div class="active-filters__menu">
-						<SavedFilters
-							v-if="renderedMenus.saved"
-							:ref="(el) => { menuRefs.saved = el }"
-							:board="board"
-							@applied="setMenu('saved', false)" />
-					</div>
-				</NcPopover>
-			</li>
-			<li
-				v-for="facet in facets"
-				:key="facet.id"
-				class="active-filters__item"
-				:data-part-id="facet.id">
-				<NcButton
-					v-if="facet.step"
-					variant="tertiary"
-					:aria-label="facet.step === 'week' ? t('deck', 'Previous week') : t('deck', 'Previous month')"
-					@click="stepPeriod(-1)">
-					<template #icon>
-						<ChevronLeftIcon :size="20" />
-					</template>
-				</NcButton>
-				<NcPopover
-					:shown="openMenu === facet.id"
-					placement="bottom-start"
-					:aria-label="facet.label"
-					noFocusTrap
-					@update:shown="(shown) => setMenu(facet.id, shown)"
-					@afterShow="focusMenu(facet.id)"
-					@afterHide="onMenuHidden(facet.id)">
-					<template #trigger>
-						<NcButton
-							:variant="facet.value ? 'secondary' : 'tertiary'"
-							:data-cy-bar-menu="facet.id"
-							:aria-label="facet.value ? `${facet.label}: ${facet.value}` : facet.label"
-							:title="facet.value || null">
-							<template #icon>
-								<component :is="facet.icon" :size="20" />
-							</template>
-							<span class="active-filters__label">{{ facet.value ? `${facet.label}: ${facet.shortValue}` : facet.label }}</span>
-						</NcButton>
-					</template>
-					<div class="active-filters__menu">
-						<FilterFacet
-							v-if="renderedMenus[facet.id]"
-							:ref="(el) => { menuRefs[facet.id] = el }"
-							:board="board"
-							:facet="facet.id"
-							@chosen="setMenu(facet.id, false)" />
-					</div>
-				</NcPopover>
-				<NcButton
-					v-if="facet.step"
-					variant="tertiary"
-					:aria-label="facet.step === 'week' ? t('deck', 'Next week') : t('deck', 'Next month')"
-					@click="stepPeriod(1)">
-					<template #icon>
-						<ChevronRightIcon :size="20" />
-					</template>
-				</NcButton>
-				<NcButton
-					v-if="facet.value"
-					variant="tertiary"
-					:aria-label="t('deck', 'Remove filter {name}', { name: `${facet.label}: ${facet.value}` })"
-					:title="t('deck', 'Remove filter')"
-					data-cy-bar-remove
-					@click="removeFacet(facet.id)">
-					<template #icon>
-						<CloseIcon :size="20" />
-					</template>
-				</NcButton>
-			</li>
-		</ul>
-
-		<!-- narrow boards: the active filter as removable chips, the popover holds the menus -->
-		<ul v-else class="active-filters__list" :aria-label="t('deck', 'Active filters')">
+		class="active-filters">
+		<!-- the active filter as removable chips; their text opens the filter menu at that part -->
+		<ul class="active-filters__list" :aria-label="t('deck', 'Active filters')">
 			<li v-if="activeView" data-part-id="view">
 				<NcChip
-					:text="activeView.name"
 					variant="primary"
 					:ariaLabelClose="t('deck', 'Remove saved filter {name}', { name: activeView.name })"
 					@close="clearFilter">
-					<template #icon>
+					<!-- icon and text together are the button, a target big enough for touch -->
+					<button
+						type="button"
+						class="active-filters__edit"
+						:aria-label="t('deck', 'Change filter {name}', { name: activeView.name })"
+						:title="t('deck', 'Change filter')"
+						@click="editFilter(null)">
 						<FilterCheckIcon :size="18" />
-					</template>
+						<span class="active-filters__text">{{ activeView.name }}</span>
+					</button>
 				</NcChip>
 			</li>
 			<li
@@ -137,10 +43,14 @@
 					</template>
 				</NcButton>
 				<NcChip
-					:text="part.label"
-					:ariaLabelClose="closeLabel(part)"
+					:ariaLabelClose="t('deck', 'Remove filter {name}', { name: partName(part) })"
 					@close="removePart(part, index)">
-					<template #icon>
+					<button
+						type="button"
+						class="active-filters__edit"
+						:aria-label="t('deck', 'Change filter {name}', { name: partName(part) })"
+						:title="t('deck', 'Change filter')"
+						@click="editFilter(facetOf(part))">
 						<NcAvatar
 							v-if="part.kind === 'users' && part.user"
 							:user="part.user"
@@ -148,7 +58,8 @@
 							disableMenu
 							hideStatus />
 						<component :is="icons[part.kind]" v-else :size="18" />
-					</template>
+						<span class="active-filters__text">{{ part.label }}</span>
+					</button>
 				</NcChip>
 				<NcButton
 					v-if="part.step"
@@ -175,9 +86,8 @@
 			</NcButton>
 		</div>
 		<NcButton
-			v-if="parts.length > 0"
 			variant="tertiary"
-			:size="filterBarFits ? 'normal' : 'small'"
+			size="small"
 			@click="clearFilter()">
 			{{ t('deck', 'Clear filter') }}
 		</NcButton>
@@ -185,50 +95,39 @@
 </template>
 
 <script>
+import { emit } from '@nextcloud/event-bus'
 import moment from '@nextcloud/moment'
-import { NcAvatar, NcButton, NcChip, NcPopover } from '@nextcloud/vue'
+import { NcAvatar, NcButton, NcChip } from '@nextcloud/vue'
 import { mapActions, mapState } from 'pinia'
 import { markRaw } from 'vue'
 import AccountMultipleIcon from 'vue-material-design-icons/AccountMultipleOutline.vue'
 import AccountOffIcon from 'vue-material-design-icons/AccountOffOutline.vue'
-import BookmarkCheckIcon from 'vue-material-design-icons/BookmarkCheckOutline.vue'
-import BookmarkIcon from 'vue-material-design-icons/BookmarkOutline.vue'
 import CalendarIcon from 'vue-material-design-icons/CalendarOutline.vue'
 import CheckCircleIcon from 'vue-material-design-icons/CheckCircleOutline.vue'
 import ChevronLeftIcon from 'vue-material-design-icons/ChevronLeft.vue'
 import ChevronRightIcon from 'vue-material-design-icons/ChevronRight.vue'
-import CloseIcon from 'vue-material-design-icons/Close.vue'
 import FilterCheckIcon from 'vue-material-design-icons/FilterCheckOutline.vue'
 import MinusCircleIcon from 'vue-material-design-icons/MinusCircleOutline.vue'
 import TagIcon from 'vue-material-design-icons/TagOutline.vue'
-import FilterFacet from '../filter/FilterFacet.vue'
-import SavedFilters from '../filter/SavedFilters.vue'
-import { FACET_RESET, facetValue, filterParts, filtersEqual, isFilterActive } from '../../helpers/boardFilter.js'
+import { filterParts, filtersEqual } from '../../helpers/boardFilter.js'
 import { periodAround } from '../../helpers/periods.js'
 import { emptyFilter, rememberMatchModes, useBoardStore } from '../../stores/board.js'
 import { useCardStore } from '../../stores/card.js'
 
 /**
- * The board filter below the board header. On wide boards a bar with a menu per facet, like the
- * filters of the Files app; on narrow ones the active filter as removable chips, as Files shows
- * them, while the filter popover of the header holds the menus.
+ * The active board filter below the board header, as removable chips like Files shows them. The
+ * text of a chip opens the filter menu of the header at its part of the filter.
  */
 export default {
 	name: 'ActiveFilters',
 
 	components: {
-		BookmarkCheckIcon,
-		BookmarkIcon,
 		ChevronLeftIcon,
 		ChevronRightIcon,
-		CloseIcon,
 		FilterCheckIcon,
-		FilterFacet,
 		NcAvatar,
 		NcButton,
 		NcChip,
-		NcPopover,
-		SavedFilters,
 	},
 
 	props: {
@@ -249,49 +148,14 @@ export default {
 				status: CheckCircleIcon,
 				due: CalendarIcon,
 			}),
-
-			// the menu open in the filter bar: 'saved', a facet or null
-			openMenu: null,
-			// menus whose content exists: it stays until a menu has finished closing, which its focus trap needs
-			renderedMenus: {},
 		}
 	},
 
 	computed: {
-		...mapState(useBoardStore, ['filter', 'filterBarFits', 'filterBarOpen', 'filterBarKept']),
+		...mapState(useBoardStore, ['filter']),
 
 		parts() {
 			return filterParts(this.filter, this.board)
-		},
-
-		filterActive() {
-			return isFilterActive(this.filter)
-		},
-
-		shown() {
-			return this.filterBarFits
-				? this.filterBarOpen || this.filterBarKept || this.filterActive
-				: this.parts.length > 0
-		},
-
-		facets() {
-			const icons = this.icons
-			return [
-				{ id: 'tags', label: t('deck', 'Tags'), icon: icons.tags },
-				{ id: 'users', label: t('deck', 'Assigned to'), icon: icons.users },
-				{ id: 'status', label: t('deck', 'Status'), icon: icons.status },
-				{ id: 'due', label: t('deck', 'Due date'), icon: icons.due },
-			].map((facet) => {
-				const value = facetValue(this.parts, facet.id)
-				const step = facet.id === 'due' ? this.parts.find((part) => part.kind === 'due')?.step : undefined
-				return {
-					...facet,
-					value,
-					// a calendar period is named by its title, its dates are in the tooltip
-					shortValue: step ? value.split(' · ')[0] : value,
-					step,
-				}
-			})
 		},
 
 		noCardsMatch() {
@@ -352,67 +216,20 @@ export default {
 		},
 	},
 
-	watch: {
-		filterActive(active) {
-			// the bar stays when its last filter is removed, rather than vanishing under the pointer
-			if (active && this.filterBarFits) {
-				this.keepFilterBar(true)
-			}
-		},
-
-		filterBarFits() {
-			this.openMenu = null
-		},
-
-		'board.id': function() {
-			this.openMenu = null
-		},
-	},
-
-	created() {
-		// the content components of the menus, by menu
-		this.menuRefs = {}
-	},
-
-	mounted() {
-		if (this.filterActive && this.filterBarFits) {
-			this.keepFilterBar(true)
-		}
-	},
-
 	methods: {
-		...mapActions(useBoardStore, ['setFilterValues', 'keepFilterBar']),
+		...mapActions(useBoardStore, ['setFilterValues']),
 
 		/**
-		 * @param {string} menu 'saved' or a facet
-		 * @param {boolean} shown whether it is open now
+		 * The facet whose page in the filter menu holds a part of the filter.
+		 *
+		 * @param {object} part entry of filterParts()
+		 * @return {string} 'tags', 'users', 'status' or 'due'
 		 */
-		setMenu(menu, shown) {
-			if (shown) {
-				this.openMenu = menu
-				this.renderedMenus = { ...this.renderedMenus, [menu]: true }
-			} else if (this.openMenu === menu) {
-				this.openMenu = null
-				// like the filter popover of narrow boards, the menus have no focus trap that would
-				// return focus; focus goes back to the menu's button unless the user went elsewhere
-				const active = document.activeElement
-				if (!active || active === document.body || active.closest('.v-popper__popper') || this.$refs.bar?.contains(active)) {
-					this.$refs.bar?.querySelector(`[data-cy-bar-menu="${menu}"]`)?.focus()
-				}
+		facetOf(part) {
+			if (part.kind === 'hidden') {
+				return part.id.startsWith('hidden-tag-') ? 'tags' : 'users'
 			}
-		},
-
-		/**
-		 * @param {string} menu 'saved' or a facet
-		 */
-		onMenuHidden(menu) {
-			if (this.openMenu !== menu) {
-				this.renderedMenus = { ...this.renderedMenus, [menu]: false }
-			}
-		},
-
-		focusMenu(menu) {
-			this.menuRefs[menu]?.focusStart()
+			return part.kind === 'unassigned' ? 'users' : part.kind
 		},
 
 		/**
@@ -421,7 +238,7 @@ export default {
 		 * @param {object} part entry of filterParts()
 		 * @return {string}
 		 */
-		closeLabel(part) {
+		partName(part) {
 			const facets = {
 				tags: t('deck', 'Tags'),
 				users: t('deck', 'Assigned to'),
@@ -430,8 +247,16 @@ export default {
 				due: t('deck', 'Due date'),
 			}
 			// hidden entries already read "Not: …"
-			const name = facets[part.kind] ? `${facets[part.kind]}: ${part.label}` : part.label
-			return t('deck', 'Remove filter {name}', { name })
+			return facets[part.kind] ? `${facets[part.kind]}: ${part.label}` : part.label
+		},
+
+		/**
+		 * Open the filter menu of the header, at a facet or at its overview.
+		 *
+		 * @param {string|null} facet 'tags', 'users', 'status', 'due' or null
+		 */
+		editFilter(facet) {
+			emit('deck:board:edit-filter', { facet, returnFocus: document.activeElement })
 		},
 
 		/**
@@ -458,14 +283,6 @@ export default {
 		},
 
 		/**
-		 * @param {string} facet 'tags', 'users', 'status' or 'due'
-		 */
-		removeFacet(facet) {
-			this.setFilterValues(FACET_RESET[facet])
-			this.focusPart(facet)
-		},
-
-		/**
 		 * @param {object} part entry of filterParts()
 		 * @param {number} index its position in parts
 		 */
@@ -483,23 +300,16 @@ export default {
 		},
 
 		/**
-		 * Move focus after the next render to the control of a part of the filter: in the bar its
-		 * facet's menu button, otherwise the close button of its chip. When that is gone (or no id
-		 * is given), focus goes to the first menu of the bar or to the button that opens the filter.
+		 * Move focus after the next render to the remove button of a part's chip, so parts can be
+		 * removed one after another. When that is gone (or no id is given), focus goes to the button
+		 * that opens the filter.
 		 *
 		 * @param {string|null} partId id of the part, as in filterParts()
 		 */
 		focusPart(partId) {
 			this.$nextTick(() => {
-				let target
-				if (this.filterBarFits) {
-					const facet = partId?.startsWith('hidden-tag-') ? 'tags' : partId?.startsWith('hidden-user-') ? 'users' : partId
-					target = (facet && this.$refs.bar?.querySelector(`[data-cy-bar-menu="${facet}"]`))
-						|| this.$refs.bar?.querySelector('[data-cy-bar-menu]')
-				} else {
-					target = partId && this.$refs.bar?.querySelector(`li[data-part-id="${partId}"] .nc-chip button`)
-				}
-				target = target || document.querySelector('.board-action-buttons__filter .filter-button')
+				const target = (partId && this.$refs.bar?.querySelector(`li[data-part-id="${partId}"] .nc-chip button:not(.active-filters__edit)`))
+					|| document.querySelector('.board-action-buttons__filter .filter-button')
 				target?.focus()
 			})
 		},
@@ -540,20 +350,39 @@ export default {
 	list-style: none;
 }
 
-.active-filters__label {
-	display: block;
-	// long values stay readable in the title and the accessible name
-	max-width: 14rem;
+// icon and text of a chip, as a button of its own that opens the filter menu at its part
+button.active-filters__edit {
+	display: flex;
+	align-items: center;
+	gap: var(--default-grid-baseline);
+	max-width: 100%;
+	min-height: 0;
+	margin: 0;
+	// apart from the remove button, so a tap meant for one does not hit the other
+	margin-inline-end: var(--default-grid-baseline);
+	padding: 2px 0;
+	border: none;
+	border-radius: var(--border-radius-small, 4px);
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-weight: normal;
+	cursor: pointer;
+
+	&:hover .active-filters__text {
+		text-decoration: underline;
+	}
+
+	&:focus-visible {
+		outline: 2px solid currentColor;
+		outline-offset: 1px;
+	}
+}
+
+.active-filters__text {
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-}
-
-.active-filters__menu {
-	box-sizing: border-box;
-	width: 300px;
-	max-height: calc(100vh - 200px);
-	overflow: auto;
-	padding: calc(2 * var(--default-grid-baseline));
 }
 </style>

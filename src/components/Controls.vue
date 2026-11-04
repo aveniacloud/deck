@@ -88,27 +88,13 @@
 			</p>
 			<div v-if="board" class="board-action-buttons">
 				<div class="board-action-buttons__filter">
-					<!-- on wide boards the filter is a bar of facet buttons below the header, shown by this button -->
-					<NcButton
-						v-if="filterBarFits"
-						:title="t('deck', 'Apply filter')"
-						:aria-label="t('deck', 'Apply filter')"
-						:aria-expanded="filterBarShown ? 'true' : 'false'"
-						aria-controls="deck-filter-bar"
-						class="filter-button"
-						:variant="filterActive ? 'primary' : 'tertiary'"
-						@click="toggleFilterBar">
-						<template #icon>
-							<FilterIcon v-if="filterActive" :size="20" decorative />
-							<FilterOffIcon v-else :size="20" decorative />
-						</template>
-					</NcButton>
 					<NcPopover
-						v-else
+						:shown="filterOpen"
 						placement="bottom-end"
 						noFocusTrap
 						:aria-label="t('deck', 'Filter cards')"
 						:name="t('deck', 'Filter cards')"
+						@update:shown="filterOpen = $event"
 						@afterShow="focusFilterOnOpen"
 						@afterHide="returnFocusOnClose">
 						<!-- We cannot use NcActions here as we can't style NcActionCheckbox labels dynamically -->
@@ -354,6 +340,7 @@ export default {
 			showAddCardModal: false,
 			// null for the overview, otherwise the facet shown: 'tags', 'users', 'status' or 'due'
 			filterView: null,
+			filterOpen: false,
 			filterAnnouncement: '',
 			announceTimeout: null,
 			skipAnnouncement: false,
@@ -363,7 +350,7 @@ export default {
 	},
 
 	computed: {
-		...mapState(useBoardStore, ['filter', 'filterBarFits', 'filterBarOpen', 'filterBarKept']),
+		...mapState(useBoardStore, ['filter']),
 		...mapState(useBoardStore, [
 			'canManage',
 			'viewMode',
@@ -416,10 +403,6 @@ export default {
 			return isFilterActive(this.filter)
 		},
 
-		filterBarShown() {
-			return this.filterBarFits && (this.filterBarOpen || this.filterBarKept || this.filterActive)
-		},
-
 		presentUsers() {
 			if (!this.board) {
 				return []
@@ -467,6 +450,7 @@ export default {
 	beforeMount() {
 		subscribe('deck:board:show-new-card', this.clickShowAddCardModel)
 		subscribe('deck:board:toggle-filter-popover', this.triggerOpenFilters)
+		subscribe('deck:board:edit-filter', this.editFilter)
 		subscribe('deck:board:clear-filter', this.triggerClearFilter)
 		subscribe('deck:board:toggle-filter-by-me', this.triggerFilterByMe)
 	},
@@ -475,13 +459,14 @@ export default {
 		clearTimeout(this.announceTimeout)
 		unsubscribe('deck:board:show-new-card', this.clickShowAddCardModel)
 		unsubscribe('deck:board:toggle-filter-popover', this.triggerOpenFilters)
+		unsubscribe('deck:board:edit-filter', this.editFilter)
 		unsubscribe('deck:board:clear-filter', this.triggerClearFilter)
 		unsubscribe('deck:board:toggle-filter-by-me', this.triggerFilterByMe)
 		this.setPageTitle('')
 	},
 
 	methods: {
-		...mapActions(useBoardStore, ['setViewMode', 'toggleShowArchived', 'setFilterValues', 'setFilterBarOpen']),
+		...mapActions(useBoardStore, ['setViewMode', 'toggleShowArchived', 'setFilterValues']),
 		...mapActions(useStackStore, ['createStack']),
 		...mapActions(useSettingsStore, {
 			setSearchQuery: 'setSearchQuery',
@@ -529,41 +514,37 @@ export default {
 
 		focusFilterOnOpen() {
 			// the popover reports being shown only after its transition; by then the user may already be working in it
-			if (!this.$refs.filterContent?.contains(document.activeElement)) {
+			if (this.$refs.filterContent?.contains(document.activeElement)) {
+				return
+			}
+			if (this.filterView) {
+				this.$nextTick(() => this.$refs.facet?.focusStart())
+			} else {
 				this.focusFirstFilterControl()
 			}
 		},
 
 		returnFocusOnClose() {
+			// a chip may have opened the menu again while it was closing
+			if (this.filterOpen) {
+				return
+			}
 			// the next opening starts at the overview again
 			this.filterView = null
 			// without a focus trap the popover does not return focus itself, e.g. after Escape
 			const active = document.activeElement
 			if (!active || active === document.body || this.$refs.filterContent?.contains(active)) {
-				this.$refs.filterPopover?.$el.focus()
+				// back to the chip the menu was opened from, while it is still there
+				const target = this.returnFocus?.isConnected ? this.returnFocus : this.$refs.filterPopover?.$el
+				target?.focus()
 			}
+			this.returnFocus = null
 		},
 
 		clearFilterFromPopover() {
 			this.clearFilter()
 			// the clear button goes away, so keep focus in the popover
 			this.focusFirstFilterControl()
-		},
-
-		/**
-		 * Show or hide the filter bar of wide boards. It cannot be hidden while a filter is active,
-		 * then the button takes the user to it instead.
-		 */
-		toggleFilterBar() {
-			if (this.filterBarShown && this.filterActive) {
-				document.querySelector('#deck-filter-bar button')?.focus()
-				return
-			}
-			const open = !this.filterBarShown
-			this.setFilterBarOpen(open)
-			if (open) {
-				this.$nextTick(() => document.querySelector('#deck-filter-bar button')?.focus())
-			}
 		},
 
 		clearSearchQuery() {
@@ -643,10 +624,23 @@ export default {
 		},
 
 		triggerOpenFilters() {
-			if (this.filterBarFits) {
-				this.toggleFilterBar()
+			this.filterOpen = !this.filterOpen
+		},
+
+		/**
+		 * Open the filter menu from a chip below the header, at the chip's facet.
+		 *
+		 * @param {object} request what to open
+		 * @param {string|null} request.facet 'tags', 'users', 'status', 'due' or null for the overview
+		 * @param {HTMLElement} request.returnFocus where focus goes back to when the menu closes
+		 */
+		editFilter({ facet, returnFocus }) {
+			this.returnFocus = returnFocus
+			this.filterView = facet
+			if (this.filterOpen) {
+				this.focusFilterOnOpen()
 			} else {
-				this.$refs.filterPopover?.$el.click()
+				this.filterOpen = true
 			}
 		},
 
