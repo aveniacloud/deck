@@ -7,9 +7,7 @@ import { randUser } from '../utils/index.js'
 
 const user = randUser()
 
-// the any/all switch keeps its radio input visually hidden; click its label like a user would
-const chooseMatch = (mode) => cy.get(`input[data-cy-match="${mode}"]`).parent().click()
-const choosePeriodKind = (kind) => cy.get(`input[data-cy-period="${kind}"]`).parent().click()
+const chooseMatch = (mode) => cy.get(`button[data-cy-match="${mode}"]`).click()
 // the popover starts at an overview of the facets, each opening its own options
 const openFacet = (facet) => cy.get(`[data-cy-facet="${facet}"]`).click()
 const backToFilters = () => cy.get('[data-cy-filter-back]').click()
@@ -213,11 +211,11 @@ describe('Board filter', function() {
 		})
 
 		it('Offers the match mode once two tags are selected', function() {
-			cy.get('input[data-cy-match="tags-any"]').should('not.exist')
+			cy.get('button[data-cy-match="tags-any"]').should('not.exist')
 
 			cy.get('.filter label:contains("To review")').click()
 
-			cy.get('.filter--heading:contains("Tags") input[data-cy-match="tags-all"]').should('be.checked')
+			cy.get('.filter--heading:contains("Tags") button[data-cy-match="tags-all"]').should('have.attr', 'aria-pressed', 'true')
 		})
 
 		it('Announces how many cards are shown', function() {
@@ -264,14 +262,14 @@ describe('Board filter', function() {
 			openFacet('tags')
 			cy.get('.filter label:contains("Finished")').click()
 			cy.get('.filter label:contains("To review")').click()
-			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
+			cy.get('button[data-cy-match="tags-any"]').should('have.attr', 'aria-pressed', 'true')
 
 			// the filter itself is kept after reloading, too
 			cy.reload()
 			cy.get('.board .card').should('have.length', 3)
 			cy.get('[aria-label="Apply filter"]').click()
 			openFacet('tags')
-			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
+			cy.get('button[data-cy-match="tags-any"]').should('have.attr', 'aria-pressed', 'true')
 		})
 	})
 
@@ -286,11 +284,11 @@ describe('Board filter', function() {
 		})
 
 		it('Offers the match mode once two users are selected', function() {
-			cy.get('input[data-cy-match="users-all"]').should('not.exist')
+			cy.get('button[data-cy-match="users-all"]').should('not.exist')
 
 			cy.get(`label[for="${bob.userId}"]`).click()
 
-			cy.get('input[data-cy-match="users-any"]').should('be.checked')
+			cy.get('button[data-cy-match="users-any"]').should('have.attr', 'aria-pressed', 'true')
 		})
 
 		it('Lists the current user first, marked as such', function() {
@@ -322,7 +320,7 @@ describe('Board filter', function() {
 			openFacet('users')
 			cy.get(`label[for="${alice.userId}"]`).click()
 			cy.get(`label[for="${bob.userId}"]`).click()
-			cy.get('input[data-cy-match="users-all"]').should('be.checked')
+			cy.get('button[data-cy-match="users-all"]').should('have.attr', 'aria-pressed', 'true')
 		})
 	})
 
@@ -450,29 +448,22 @@ describe('Board filter', function() {
 	})
 
 	describe('Hiding tags and users', function() {
-		it('Always shows the hide buttons, muted until pressed', function() {
+		it('Shows the hide buttons for the row in use, and pressed ones always', function() {
 			cy.login(user)
 			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
 			cy.get('[aria-label="Apply filter"]').click()
 			openFacet('tags')
 
 			const hide = '[aria-label="Hide cards with tag Later"]'
-			const other = '[aria-label="Hide cards with tag Finished"]'
+			// hidden until pointed at or reached with the keyboard; a synthetic click counts as keyboard focus,
+			// so that a clicked row does not keep it is only checked in a real browser
+			cy.get(hide).should('have.css', 'opacity', '0')
+			cy.get(hide).focus()
 			cy.get(hide).should('have.css', 'opacity', '1')
-			cy.get(other).should('have.css', 'opacity', '1')
-			cy.get(hide).then(($button) => {
-				const muted = getComputedStyle($button[0]).color
-				cy.get(hide).click()
-				cy.get(hide).should('have.attr', 'aria-pressed', 'true')
-				// leave the pointer elsewhere, so only the pressed state can make it stronger
-				cy.get('.filter label:contains("Finished")').click()
-				cy.get(hide).should(($pressed) => {
-					expect(getComputedStyle($pressed[0]).color).not.to.eq(muted)
-				})
-				cy.get(other).should(($unpressed) => {
-					expect(getComputedStyle($unpressed[0]).color).to.eq(muted)
-				})
-			})
+			cy.get(hide).click()
+			cy.get('.filter label:contains("Finished")').click()
+			cy.get(hide).should('have.css', 'opacity', '1')
+			cy.get('[aria-label="Hide cards with tag Action needed"]').should('have.css', 'opacity', '0')
 		})
 
 		it('Hides cards that carry a hidden tag', function() {
@@ -588,7 +579,7 @@ describe('Board filter', function() {
 			cy.get('.active-filters li').first().should('contain', 'Finished or review')
 			cy.get('.active-filters li').first().find('[aria-label="Remove saved filter Finished or review"]').should('exist')
 			openFacet('tags')
-			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
+			cy.get('button[data-cy-match="tags-any"]').should('have.attr', 'aria-pressed', 'true')
 
 			// changing the filter means the saved one no longer applies
 			chooseMatch('tags-all')
@@ -786,10 +777,7 @@ describe('Board filter', function() {
 		})
 
 		it('Starts at the current month and steps through months', function() {
-			cy.get('label[for="duePeriod"]').click()
-			// Vue ignores events not newer than their listener, which a frozen clock guarantees
-			cy.tick(1000)
-			choosePeriodKind('calendarMonth')
+			cy.get('label[for="dueCalendarMonth"]').click()
 
 			cy.get('[data-cy-due-range-period]').should('contain', 'October 2026')
 			cy.get('.board .card').should('have.length', 1)
@@ -804,10 +792,7 @@ describe('Board filter', function() {
 		})
 
 		it('Includes both whole days of a custom range', function() {
-			cy.get('label[for="duePeriod"]').click()
-			// Vue ignores events not newer than their listener, which a frozen clock guarantees
-			cy.tick(1000)
-			choosePeriodKind('range')
+			cy.get('label[for="dueRange"]').click()
 			cy.get('#due-range-from').type('2026-11-04')
 			cy.get('#due-range-to').type('2026-11-30')
 
@@ -817,11 +802,8 @@ describe('Board filter', function() {
 		})
 
 		it('Leaves the range open when only one end is set', function() {
-			cy.get('label[for="duePeriod"]').click()
-			// Vue ignores events not newer than their listener, which a frozen clock guarantees
-			cy.tick(1000)
-			choosePeriodKind('range')
-			// the range starts with the dates of the week shown before
+			cy.get('label[for="dueRange"]').click()
+			// a new range starts with the current week
 			cy.get('#due-range-to').clear()
 			cy.get('#due-range-from').type('2026-11-04')
 

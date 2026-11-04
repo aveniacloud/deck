@@ -103,13 +103,13 @@ If no card matches, the chips say so and offer the smallest change that shows ca
 
 Once you select two or more tags, **Any | All** appears next to the "Tags" heading in the tag options and decides whether a card needs any or all of them to be shown. By default a card needs all of them. Under "Assigned to" you are listed first, marked "(you)", to quickly show your own cards; the keyboard shortcut for your own cards adds or removes you without changing the rest of the filter. Next to "Assigned to", **Any | All** does the same for users, where any of them is enough by default. Your choice is remembered for each board in your browser, also when you clear the filter.
 
-To leave cards out instead, use the minus button at the end of a tag or user. Cards carrying that tag, or assigned to that user, are hidden, whatever else is selected. Click the button again, or select the tag or user, to stop hiding them.
+To leave cards out instead, use the minus button at the end of a tag or user; it appears when you point at the row or reach it with the keyboard, and stays while it is pressed. Cards carrying that tag, or assigned to that user, are hidden, whatever else is selected. Click the button again, or select the tag or user, to stop hiding them.
 
 Besides the fixed periods (overdue, the next 24 hours, 7 days or 30 days, or no due date; the "next" periods are counted from now and only include cards due in the future), you can filter by calendar periods:
 
 - **Calendar week**: cards due in one calendar week, Monday to Sunday. It starts at the current week; use the arrows to move to earlier or later weeks.
-- **Month or date range**, then **Month**: the same for whole months.
-- **Month or date range**, then **Range**: cards due between a start and an end date, both days included. Leave one of them empty to show everything due after the start or before the end.
+- **Calendar month**: the same for whole months.
+- **Date range**: cards due between a start and an end date, both days included. It starts with the current week, or with the week or month shown before. Leave one of the dates empty to show everything due after the start or before the end.
 
 **Also show overdue open cards** adds the cards whose due date has passed but that are not done yet, for example to review this week's cards together with everything that is late.
 

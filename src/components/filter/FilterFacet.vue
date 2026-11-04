@@ -11,21 +11,17 @@
 				<div
 					v-if="filter.tags.length > 1"
 					class="filter--match"
-					role="radiogroup"
+					role="group"
 					:aria-label="t('deck', 'Show cards with any or all of the selected tags')">
-					<NcCheckboxRadioSwitch
+					<NcButton
 						v-for="mode in ['any', 'all']"
 						:key="mode"
-						:modelValue="filter.tagMatch"
-						type="radio"
-						name="filter-tagMatch"
-						:value="mode"
-						:buttonVariant="true"
-						buttonVariantGrouped="horizontal"
+						size="small"
+						:pressed="filter.tagMatch === mode"
 						:data-cy-match="`tags-${mode}`"
-						@update:modelValue="setMatchMode('tagMatch', mode)">
+						@update:pressed="setMatchMode('tagMatch', mode)">
 						{{ mode === 'any' ? t('deck', 'Any') : t('deck', 'All') }}
-					</NcCheckboxRadioSwitch>
+					</NcButton>
 				</div>
 			</div>
 			<div
@@ -63,21 +59,17 @@
 				<div
 					v-if="filter.users.length > 1"
 					class="filter--match"
-					role="radiogroup"
+					role="group"
 					:aria-label="t('deck', 'Show cards assigned to any or all of the selected users')">
-					<NcCheckboxRadioSwitch
+					<NcButton
 						v-for="mode in ['any', 'all']"
 						:key="mode"
-						:modelValue="filter.userMatch"
-						type="radio"
-						name="filter-userMatch"
-						:value="mode"
-						:buttonVariant="true"
-						buttonVariantGrouped="horizontal"
+						size="small"
+						:pressed="filter.userMatch === mode"
 						:data-cy-match="`users-${mode}`"
-						@update:modelValue="setMatchMode('userMatch', mode)">
+						@update:pressed="setMatchMode('userMatch', mode)">
 						{{ mode === 'any' ? t('deck', 'Any') : t('deck', 'All') }}
-					</NcCheckboxRadioSwitch>
+					</NcButton>
 				</div>
 			</div>
 			<div class="filter--item">
@@ -156,80 +148,36 @@
 				<label :for="option.value">{{ option.label }}</label>
 			</div>
 
-			<div class="filter--item">
-				<input
-					id="dueCalendarWeek"
-					:checked="filter.due === 'calendarWeek'"
-					type="radio"
-					name="filter-due"
-					class="radio"
-					value="calendarWeek"
-					@click="togglePeriod('calendarWeek')">
-				<label for="dueCalendarWeek">{{ t('deck', 'Calendar week') }}</label>
-			</div>
-			<!-- the period controls belong to the option right above them -->
-			<div v-if="filter.due === 'calendarWeek'" class="filter--due-options">
-				<DueDateRangeFilter
-					mode="calendarWeek"
-					:from="filter.dueFrom"
-					:to="filter.dueTo"
-					@update="updateDueRange" />
+			<template v-for="period in periodOptions" :key="period.value">
 				<div class="filter--item">
 					<input
-						id="due-include-overdue"
-						:checked="filter.dueIncludeOverdue"
-						type="checkbox"
-						class="checkbox"
-						@change="setFilterValues({ dueIncludeOverdue: $event.target.checked })">
-					<label for="due-include-overdue">{{ t('deck', 'Also show overdue open cards') }}</label>
-				</div>
-			</div>
-
-			<div class="filter--item">
-				<input
-					id="duePeriod"
-					:checked="isDuePeriod"
-					type="radio"
-					name="filter-due"
-					class="radio"
-					value="period"
-					@click="togglePeriod('calendarMonth')">
-				<label for="duePeriod">{{ t('deck', 'Month or date range') }}</label>
-			</div>
-			<div v-if="isDuePeriod" class="filter--due-options">
-				<div
-					class="filter--match"
-					role="radiogroup"
-					:aria-label="t('deck', 'Kind of period')">
-					<NcCheckboxRadioSwitch
-						v-for="option in periodOptions"
-						:key="option.value"
-						:modelValue="filter.due"
+						:id="period.id"
+						:checked="filter.due === period.value"
 						type="radio"
-						name="filter-due-period"
-						:value="option.value"
-						:buttonVariant="true"
-						buttonVariantGrouped="horizontal"
-						:data-cy-period="option.value"
-						@update:modelValue="choosePeriod(option.value)">
-						{{ option.label }}
-					</NcCheckboxRadioSwitch>
+						name="filter-due"
+						class="radio"
+						:value="period.value"
+						@click="togglePeriod(period.value)">
+					<label :for="period.id">{{ period.label }}</label>
 				</div>
-				<DueDateRangeFilter
-					:mode="filter.due"
-					:from="filter.dueFrom"
-					:to="filter.dueTo"
-					@update="updateDueRange" />
-				<div class="filter--item">
-					<input
-						id="due-include-overdue"
-						:checked="filter.dueIncludeOverdue"
-						type="checkbox"
-						class="checkbox"
-						@change="setFilterValues({ dueIncludeOverdue: $event.target.checked })">
-					<label for="due-include-overdue">{{ t('deck', 'Also show overdue open cards') }}</label>
+				<!-- the period controls belong to the option right above them -->
+				<div v-if="filter.due === period.value" class="filter--due-options">
+					<DueDateRangeFilter
+						:mode="period.value"
+						:from="filter.dueFrom"
+						:to="filter.dueTo"
+						@update="updateDueRange" />
+					<div class="filter--item">
+						<input
+							id="due-include-overdue"
+							:checked="filter.dueIncludeOverdue"
+							type="checkbox"
+							class="checkbox"
+							@change="setFilterValues({ dueIncludeOverdue: $event.target.checked })">
+						<label for="due-include-overdue">{{ t('deck', 'Also show overdue open cards') }}</label>
+					</div>
 				</div>
-			</div>
+			</template>
 
 			<div class="filter--item">
 				<input
@@ -248,7 +196,7 @@
 
 <script>
 import { getCurrentUser } from '@nextcloud/auth'
-import { NcAvatar, NcButton, NcCheckboxRadioSwitch } from '@nextcloud/vue'
+import { NcAvatar, NcButton } from '@nextcloud/vue'
 import { mapActions, mapState } from 'pinia'
 import MinusCircleIcon from 'vue-material-design-icons/MinusCircle.vue'
 import MinusCircleOutlineIcon from 'vue-material-design-icons/MinusCircleOutline.vue'
@@ -271,7 +219,6 @@ export default {
 		MinusCircleOutlineIcon,
 		NcAvatar,
 		NcButton,
-		NcCheckboxRadioSwitch,
 	},
 
 	mixins: [labelStyle],
@@ -328,15 +275,12 @@ export default {
 
 		periodOptions() {
 			return [
-				{ value: 'calendarMonth', label: t('deck', 'Month') },
-				{ value: 'range', label: t('deck', 'Range') },
+				{ value: 'calendarWeek', id: 'dueCalendarWeek', label: t('deck', 'Calendar week') },
+				{ value: 'calendarMonth', id: 'dueCalendarMonth', label: t('deck', 'Calendar month') },
+				{ value: 'range', id: 'dueRange', label: t('deck', 'Date range') },
 			]
 		},
 
-		isDuePeriod() {
-			// the calendar week has an option of its own, being what most people look for
-			return ['calendarMonth', 'range'].includes(this.filter.due)
-		},
 	},
 
 	methods: {
@@ -415,13 +359,17 @@ export default {
 
 		/**
 		 * Switch between calendar week, calendar month and custom range. Weeks and months start at the
-		 * current one; a custom range keeps the dates shown before.
+		 * current one; a custom range keeps the dates shown before, or starts with the current week.
 		 *
 		 * @param {string} mode 'calendarWeek', 'calendarMonth' or 'range'
 		 */
 		choosePeriod(mode) {
-			if (mode === 'range') {
+			if (mode === 'range' && (this.filter.dueFrom || this.filter.dueTo)) {
+				// a range keeps the dates of the week or month shown before, to adjust them from there
 				this.setFilterValues({ due: mode })
+			} else if (mode === 'range') {
+				const { from, to } = periodAround('calendarWeek')
+				this.setFilterValues({ due: mode, dueFrom: from, dueTo: to })
 			} else {
 				const { from, to } = periodAround(mode)
 				this.setFilterValues({ due: mode, dueFrom: from, dueTo: to })
@@ -429,14 +377,12 @@ export default {
 		},
 
 		/**
-		 * Like the other due date options, choosing the calendar week or "Month or date range"
-		 * again turns it off.
+		 * Like the other due date options, choosing a period again turns it off.
 		 *
-		 * @param {string} mode 'calendarWeek', or 'calendarMonth' as the start of "Month or date range"
+		 * @param {string} mode 'calendarWeek', 'calendarMonth' or 'range'
 		 */
 		togglePeriod(mode) {
-			const active = mode === 'calendarWeek' ? this.filter.due === 'calendarWeek' : this.isDuePeriod
-			if (active) {
+			if (this.filter.due === mode) {
 				this.setFilterValues({ due: '', dueFrom: '', dueTo: '', dueIncludeOverdue: false })
 			} else {
 				this.choosePeriod(mode)
@@ -490,9 +436,12 @@ export default {
 }
 
 .filter--match {
+	// two small toggle buttons on a quiet pill, the chosen one pressed
 	display: flex;
-	// stretched segments would only be clickable on their text, so they keep their size
-	margin-bottom: var(--default-grid-baseline);
+	gap: 2px;
+	padding: 2px;
+	border-radius: var(--border-radius-pill, 100px);
+	background: var(--color-background-dark);
 }
 
 .filter--heading {
@@ -500,8 +449,8 @@ export default {
 	align-items: center;
 	justify-content: space-between;
 	gap: calc(2 * var(--default-grid-baseline));
-	// room for the any/all switch, so the row keeps its height when the switch appears
-	min-height: calc(var(--default-clickable-area) + 4px);
+	// the row keeps its height when the any/all switch appears
+	min-height: var(--default-clickable-area);
 
 	h3 {
 		margin: 0;
@@ -516,15 +465,26 @@ export default {
 	}
 }
 
-// the hide buttons are always there, so they never come and go while moving through the list,
-// but stay muted until they are used
+// the hide buttons stay muted, and where a pointer can reveal them they appear only for the row
+// under the pointer or the keyboard focus, not for a row that was merely clicked before
 .filter--item-excludable .filter--hide:not([aria-pressed='true']) {
 	color: var(--color-text-maxcontrast);
-	transition: color var(--animation-quick) ease-out;
+	transition: color var(--animation-quick) ease-out, opacity var(--animation-quick) ease-out;
 
 	&:hover,
 	&:focus-visible {
 		color: var(--color-main-text);
+	}
+}
+
+@media (hover: hover) {
+	.filter--item-excludable .filter--hide:not([aria-pressed='true']) {
+		opacity: 0;
+	}
+
+	.filter--item-excludable:hover .filter--hide,
+	.filter--item-excludable:has(:focus-visible) .filter--hide {
+		opacity: 1;
 	}
 }
 
