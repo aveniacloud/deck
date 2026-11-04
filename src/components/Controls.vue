@@ -94,7 +94,7 @@
 						noFocusTrap
 						:aria-label="t('deck', 'Filter cards')"
 						:name="t('deck', 'Filter cards')"
-						@update:shown="filterOpen = $event"
+						@update:shown="onFilterShown"
 						@afterShow="focusFilterOnOpen"
 						@afterHide="returnFocusOnClose">
 						<!-- We cannot use NcActions here as we can't style NcActionCheckbox labels dynamically -->
@@ -522,6 +522,17 @@ export default {
 			} else {
 				this.focusFirstFilterControl()
 			}
+		},
+
+		/**
+		 * @param {boolean} shown whether the popover's own button opened or something closed it
+		 */
+		onFilterShown(shown) {
+			// its button always starts at the overview, also when the last closing has not finished yet
+			if (shown && !this.filterOpen) {
+				this.filterView = null
+			}
+			this.filterOpen = shown
 		},
 
 		returnFocusOnClose() {
