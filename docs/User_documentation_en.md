@@ -88,6 +88,33 @@ The **Activity** allows you to see everything that happened in your boards. Ever
 
 ![Gif for board sidebar](resources/gifs/EN_board_sidebar.gif)
 
+#### Filter cards
+The filter button next to the search field narrows the board down to the cards you are interested in. You can filter by tag, by assigned user, by status and by due date, and combine these filters.
+
+The filter button opens the filter menu. It lists the four parts of the filter (**Tags**, **Assigned to**, **Status** and **Due date**), each with what it currently filters, and **Clear filter** next to their heading once a filter is active. Choose one to see its options, and **Back to filters** to return; choosing a status or a fixed due date period returns by itself. Below them, set apart, are your saved filters and **Save filter…**.
+
+While a filter is active, it is shown as chips below the board title, for example "HRS or GMA", "Not: bob", "Open" or "Week 45, 2026 · Nov 2 – 8". Click the text of a chip to open the filter menu at that part of the filter, or its cross to remove that part. When the filter matches one of your saved filters, its name is shown as the first chip.
+
+The filter of a board is kept in your browser, so it is still applied when you reload or come back to the board (a calendar week or month then shows the current one). **Clear filter** next to the chips removes all of it.
+
+A calendar week or month has arrows around its chip, to move to the previous or next week or month without opening a menu.
+
+If no card matches, the chips say so and offer the smallest change that shows cards again, with how many, for example "Show 3 cards with any of these tags" (when several tags or users are combined with **All**) or "Show 1 card without "Completed"". When no single change helps, **Clear filter** is left.
+
+Once you select two or more tags, **Any | All** appears next to the "Tags" heading in the tag options and decides whether a card needs any or all of them to be shown. By default a card needs all of them. Under "Assigned to" you are listed first, marked "(you)", to quickly show your own cards; the keyboard shortcut for your own cards adds or removes you without changing the rest of the filter. Next to "Assigned to", **Any | All** does the same for users, where any of them is enough by default. Your choice is remembered for each board in your browser, also when you clear the filter.
+
+To leave cards out instead, use the minus button at the end of a tag or user; it appears when you point at the row or reach it with the keyboard, and stays while it is pressed. Cards carrying that tag, or assigned to that user, are hidden, whatever else is selected. Click the button again, or select the tag or user, to stop hiding them.
+
+Besides the fixed periods (overdue, the next 24 hours, 7 days or 30 days, or no due date; the "next" periods are counted from now and only include cards due in the future), you can filter by calendar periods:
+
+- **Calendar week**: cards due in one calendar week, Monday to Sunday. It starts at the current week; use the arrows to move to earlier or later weeks.
+- **Calendar month**: the same for whole months.
+- **Date range**: cards due between a start and an end date, both days included. It starts with the current week, or with the week or month shown before. Leave one of the dates empty to show everything due after the start or before the end.
+
+**Also show overdue open cards** adds the cards whose due date has passed but that are not done yet, for example to review this week's cards together with everything that is late.
+
+If you use the same filter regularly, set it up and choose **Save filter…** in the filter menu. Saving under the name of an existing saved filter replaces it; the form says so before you save. Saved filters are listed there, each with a short summary of what it shows; click one to apply it, or use the bin icon to delete it (the notification that follows lets you undo that). The saved filter that matches the current filter is marked with a check mark, and its name is shown as the first chip. Saved filters are personal: other people on the board do not see them, and you can save filters on boards you can only read. A saved calendar week or month always means the current one when you apply it later, and it stays recognised while you step to other weeks or months; a custom date range keeps its dates.
+
 ### 7. Sharing boards
 You can share boards with a user, a group, or, if you are using the [Circles](https://apps.nextcloud.com/apps/circles) app, with a circle.
 
@@ -178,7 +205,7 @@ For example the search `project tag:ToDo assigned:alice assigned:bob` will retur
 | description | `:`               | text token used for a case-insentitive search on the cards description |
 | list        | `:`               | text token used for a case-insentitive search on the cards list name |
 | tag         | `:`               | text token used for a case-insentitive search on the assigned tags |
-| date        | `:`               | 'overdue', 'today', 'week', 'month', 'none'                  |
+| date        | `:`               | 'overdue', 'today' (next 24 hours), 'week' (next 7 days), 'month' (next 30 days), 'none'. 'week' and 'month' are not calendar weeks or months; use the filter menu for those |
 |             | `>` `<` `>=` `<=` | Compare the card due date to the passed date (see [supported date formats](https://www.php.net/manual/de/datetime.formats.php)) Card due dates are always considered UTC for comparison |
 | assigned    | `:`               | id or displayname of a user or group for a search on the assigned users or groups |
 

@@ -67,6 +67,15 @@ Cypress.Commands.add('createExampleBoard', ({ user, board }) => {
 	}).then((boardResponse) => {
 		expect(boardResponse.status).to.eq(200)
 		const boardData = boardResponse.body
+		// share before creating cards, as only board participants can be assigned
+		for (const participant of board.shareWith ?? []) {
+			cy.request({
+				method: 'POST',
+				url: `${Cypress.expose('baseUrl')}/index.php/apps/deck/api/v1.0/boards/${boardData.id}/acl`,
+				auth,
+				body: { type: 0, participant, permissionEdit: true, permissionShare: false, permissionManage: false },
+			})
+		}
 		for (const stackIndex in board.stacks) {
 			const stack = board.stacks[stackIndex]
 			cy.request({
@@ -83,6 +92,33 @@ Cypress.Commands.add('createExampleBoard', ({ user, board }) => {
 						url: `${Cypress.expose('baseUrl')}/index.php/apps/deck/api/v1.0/boards/${boardData.id}/stacks/${stackData.id}/cards`,
 						auth,
 						body: { title: card.title, description: card.description ?? '' },
+					}).then((cardResponse) => {
+						// labels are given by title and must be among the board's default labels
+						for (const labelTitle of card.labels ?? []) {
+							const label = boardData.labels.find((l) => l.title === labelTitle)
+							cy.request({
+								method: 'PUT',
+								url: `${Cypress.expose('baseUrl')}/index.php/apps/deck/api/v1.0/boards/${boardData.id}/stacks/${stackData.id}/cards/${cardResponse.body.id}/assignLabel`,
+								auth,
+								body: { labelId: label.id },
+							})
+						}
+						if (card.duedate) {
+							cy.request({
+								method: 'PUT',
+								url: `${Cypress.expose('baseUrl')}/index.php/apps/deck/api/v1.0/boards/${boardData.id}/stacks/${stackData.id}/cards/${cardResponse.body.id}`,
+								auth,
+								body: { title: card.title, type: 'plain', owner: user.userId, description: card.description ?? '', order: cardResponse.body.order, duedate: card.duedate },
+							})
+						}
+						for (const userId of card.assignedUsers ?? []) {
+							cy.request({
+								method: 'PUT',
+								url: `${Cypress.expose('baseUrl')}/index.php/apps/deck/api/v1.0/boards/${boardData.id}/stacks/${stackData.id}/cards/${cardResponse.body.id}/assignUser`,
+								auth,
+								body: { userId },
+							})
+						}
 					})
 				}
 			})

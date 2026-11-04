@@ -27,6 +27,10 @@ class ConfigService {
 	public const SETTING_BOARD_NOTIFICATION_DUE_ALL = 'all';
 	public const SETTING_BOARD_NOTIFICATION_DUE_DEFAULT = self::SETTING_BOARD_NOTIFICATION_DUE_ASSIGNED;
 
+	public const SAVED_FILTERS_MAX_COUNT = 25;
+	public const SAVED_FILTERS_MAX_NAME_LENGTH = 100;
+	public const SAVED_FILTERS_MAX_BYTES = 20000;
+
 	private ?string $userId = null;
 
 	public function __construct(
@@ -221,10 +225,44 @@ class ConfigService {
 				if ($boardConfigKey === 'notify-due' && !in_array($value, [self::SETTING_BOARD_NOTIFICATION_DUE_ALL, self::SETTING_BOARD_NOTIFICATION_DUE_ASSIGNED, self::SETTING_BOARD_NOTIFICATION_DUE_OFF], true)) {
 					throw new BadRequestException('Board notification option must be one of: off, assigned, all');
 				}
+				if ($boardConfigKey === 'savedFilters') {
+					$value = $this->validateSavedFilters($value);
+				}
 				$this->config->setUserValue($userId, Application::APP_ID, $key, (string)$value);
 				$result = $value;
 		}
 		return $result;
+	}
+
+	/**
+	 * Saved board filters are stored as a JSON list of {name, filter} objects.
+	 * The filter itself is opaque to the backend; only the shape and size are checked.
+	 *
+	 * @return string the normalized JSON to store
+	 * @throws BadRequestException
+	 */
+	private function validateSavedFilters(mixed $value): string {
+		$filters = is_string($value) ? json_decode($value, true) : $value;
+		if (!is_array($filters) || !array_is_list($filters)) {
+			throw new BadRequestException('Saved filters must be a list');
+		}
+		if (count($filters) > self::SAVED_FILTERS_MAX_COUNT) {
+			throw new BadRequestException('At most ' . self::SAVED_FILTERS_MAX_COUNT . ' filters can be saved per board');
+		}
+		foreach ($filters as $filter) {
+			if (!is_array($filter)
+				|| !is_string($filter['name'] ?? null)
+				|| trim($filter['name']) === ''
+				|| mb_strlen($filter['name']) > self::SAVED_FILTERS_MAX_NAME_LENGTH
+				|| !is_array($filter['filter'] ?? null)) {
+				throw new BadRequestException('Each saved filter needs a name of up to ' . self::SAVED_FILTERS_MAX_NAME_LENGTH . ' characters and a filter');
+			}
+		}
+		$json = json_encode($filters);
+		if ($json === false || strlen($json) > self::SAVED_FILTERS_MAX_BYTES) {
+			throw new BadRequestException('Saved filters are too large');
+		}
+		return $json;
 	}
 
 	/**
