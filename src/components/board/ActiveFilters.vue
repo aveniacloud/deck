@@ -79,6 +79,7 @@
 import moment from '@nextcloud/moment'
 import { NcAvatar, NcButton, NcChip } from '@nextcloud/vue'
 import { mapActions, mapState } from 'pinia'
+import { markRaw } from 'vue'
 import AccountMultipleIcon from 'vue-material-design-icons/AccountMultipleOutline.vue'
 import AccountOffIcon from 'vue-material-design-icons/AccountOffOutline.vue'
 import CalendarIcon from 'vue-material-design-icons/CalendarOutline.vue'
@@ -118,14 +119,15 @@ export default {
 
 	data() {
 		return {
-			icons: {
+			// components must not become reactive
+			icons: markRaw({
 				tags: TagIcon,
 				users: AccountMultipleIcon,
 				unassigned: AccountOffIcon,
 				hidden: MinusCircleIcon,
 				status: CheckCircleIcon,
 				due: CalendarIcon,
-			},
+			}),
 		}
 	},
 
@@ -144,17 +146,46 @@ export default {
 		},
 
 		/**
-		 * When "all" of several tags or users is the likely reason for an empty result,
-		 * offer to switch to "any" of them. The default is not changed.
+		 * The smallest change to an empty result that shows cards again, with how many: first "any"
+		 * instead of "all" of several tags or users, then leaving out one part of the filter.
+		 * Nothing is offered when no single change helps; "Clear filter" remains.
 		 *
-		 * @return {{key: string, label: string}|null}
+		 * @return {{values: object, focus: string|null, label: string}|null}
 		 */
 		widenTo() {
+			if (!this.noCardsMatch) {
+				return null
+			}
+			const shownWith = (values) => useCardStore().cardCountOnBoard(this.board.id, { filter: { ...this.filter, ...values } })
+			const candidates = []
 			if (this.filter.tags.length > 1 && this.filter.tagMatch !== 'any') {
-				return { key: 'tagMatch', label: t('deck', 'Show cards with any of these tags') }
+				candidates.push({
+					values: { tagMatch: 'any' },
+					focus: 'tags',
+					label: (count) => n('deck', 'Show %n card with any of these tags', 'Show %n cards with any of these tags', count),
+				})
 			}
 			if (this.filter.users.length > 1 && this.filter.userMatch === 'all') {
-				return { key: 'userMatch', label: t('deck', 'Show cards assigned to any of these users') }
+				candidates.push({
+					values: { userMatch: 'any' },
+					focus: 'users',
+					label: (count) => n('deck', 'Show %n card assigned to any of these users', 'Show %n cards assigned to any of these users', count),
+				})
+			}
+			for (const [index, part] of this.parts.entries()) {
+				// a calendar period is named by its title, its dates would make the button long
+				const name = part.step ? part.label.split(' · ')[0] : part.label
+				candidates.push({
+					values: part.reset,
+					focus: (this.parts[index + 1] ?? this.parts[index - 1])?.id ?? null,
+					label: (count) => n('deck', 'Show %n card without "{name}"', 'Show %n cards without "{name}"', count, { name }),
+				})
+			}
+			for (const candidate of candidates) {
+				const shown = shownWith(candidate.values)
+				if (shown > 0) {
+					return { ...candidate, label: candidate.label(shown) }
+				}
 			}
 			return null
 		},
@@ -200,11 +231,14 @@ export default {
 		},
 
 		widen() {
-			const key = this.widenTo.key
-			this.setFilterValues({ [key]: 'any' })
-			rememberMatchModes(this.board.id, this.filter)
+			const { values, focus } = this.widenTo
+			this.setFilterValues(values)
+			if (values.tagMatch || values.userMatch) {
+				rememberMatchModes(this.board.id, this.filter)
+			}
 			// the button disappears with the empty result, so keep focus on the chip it changed
-			this.focusChip(key === 'tagMatch' ? 'tags' : 'users')
+			// or, when a chip was removed, on its neighbour
+			this.focusChip(focus)
 		},
 
 		/**
@@ -232,7 +266,7 @@ export default {
 		 */
 		focusChip(partId) {
 			this.$nextTick(() => {
-				const target = (partId && this.$refs.bar?.querySelector(`li[data-part-id="${partId}"] button`))
+				const target = (partId && this.$refs.bar?.querySelector(`li[data-part-id="${partId}"] .nc-chip button`))
 					|| document.querySelector('.board-action-buttons__filter .filter-button')
 				target?.focus()
 			})

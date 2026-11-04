@@ -388,12 +388,31 @@ describe('Board filter', function() {
 
 			cy.get('.board .card').should('have.length', 0)
 			cy.get('.active-filters__empty').should('contain', 'No cards match')
-			cy.get('.active-filters button:contains("Show cards with any of these tags")').click()
+			cy.get('.active-filters button:contains("Show 3 cards with any of these tags")').click()
 
 			cy.get('.board .card').should('have.length', 3)
 			cy.get('.active-filters__empty').should('not.exist')
 			cy.focused().should('have.attr', 'aria-label', 'Remove filter Tags: To review or Action needed')
-			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
+		})
+
+		it('Offers only a change that shows cards for an empty result', function() {
+			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('tags')
+			cy.get('.filter label:contains("Finished")').click()
+			cy.get('.filter label:contains("To review")').click()
+			backToFilters()
+			openFacet('status')
+			cy.get('label[for="filter-option-completed"]').click()
+
+			// no card is completed, so "any of these tags" would not help
+			cy.get('[aria-label="Apply filter"]').click()
+			cy.get('.board .card').should('have.length', 0)
+			cy.get('.active-filters button:contains("with any of these tags")').should('not.exist')
+			cy.get('.active-filters button:contains(\'Show 1 card without "Completed"\')').click()
+
+			cy.get('.board .card').should('have.length', 1)
+			cy.get('.active-filters li').should('have.length', 1)
+			cy.focused().should('have.attr', 'aria-label', 'Remove filter Tags: Finished and To review')
 		})
 
 		it('Keeps the filter after a reload until it is cleared', function() {
@@ -525,6 +544,15 @@ describe('Board filter', function() {
 			cy.wait('@saveFilters').its('response.statusCode').should('eq', 200)
 			cy.get('.filter--saved:contains("Finished or review")').should('be.visible')
 
+			// saving under the same name says that it replaces the saved filter
+			cy.get('.filter button:contains("Save filter")').click()
+			cy.get('.filter--save input').type('finished OR review')
+			cy.get('.filter--save-hint').should('contain', 'Replaces the saved filter "Finished or review"')
+			cy.get('.filter--save button[type="submit"]').should('contain', 'Replace')
+			cy.get('.filter--save button:contains("Clear filter")').should('not.exist')
+			cy.get('.filter button:contains("Clear filter")').should('not.exist')
+			cy.get('.filter--save button:contains("Cancel")').click()
+
 			cy.reload()
 			// the applied filter is kept after reloading
 			cy.get('.board .card').should('have.length', 3)
@@ -649,7 +677,7 @@ describe('Board filter', function() {
 		})
 
 		it('Starts at the current calendar week and steps through weeks', function() {
-			cy.get('label[for="duePeriod"]').click()
+			cy.get('label[for="dueCalendarWeek"]').click()
 
 			cy.get('[data-cy-due-range-period]').should('contain', 'Week 44, 2026')
 			cy.get('.board .card').should('have.length', 1)
@@ -665,7 +693,7 @@ describe('Board filter', function() {
 		})
 
 		it('Steps through weeks from the period chip', function() {
-			cy.get('label[for="duePeriod"]').click()
+			cy.get('label[for="dueCalendarWeek"]').click()
 			cy.get('.active-filters li').should('contain', 'Week 44, 2026 · Oct 26')
 
 			// Vue ignores events not newer than their listener, which a frozen clock guarantees
@@ -679,13 +707,13 @@ describe('Board filter', function() {
 		})
 
 		it('Shows the period controls right below their option', function() {
-			cy.get('label[for="duePeriod"]').click()
+			cy.get('label[for="dueCalendarWeek"]').click()
 
-			cy.get('label[for="duePeriod"]').parent().next().find('[data-cy-due-range-period]').should('exist')
+			cy.get('label[for="dueCalendarWeek"]').parent().next().find('[data-cy-due-range-period]').should('exist')
 		})
 
 		it('Keeps a saved current week recognised while stepping to other weeks', function() {
-			cy.get('label[for="duePeriod"]').click()
+			cy.get('label[for="dueCalendarWeek"]').click()
 			cy.tick(1000)
 			backToFilters()
 			cy.get('.filter button:contains("Save filter")').click()
@@ -712,18 +740,18 @@ describe('Board filter', function() {
 		})
 
 		it('Turns the period off when chosen again', function() {
-			cy.get('label[for="duePeriod"]').click()
+			cy.get('label[for="dueCalendarWeek"]').click()
 			cy.get('.board .card').should('have.length', 1)
 
-			cy.get('label[for="duePeriod"]').click()
+			cy.get('label[for="dueCalendarWeek"]').click()
 
-			cy.get('#duePeriod').should('not.be.checked')
+			cy.get('#dueCalendarWeek').should('not.be.checked')
 			cy.get('[data-cy-due-range-period]').should('not.exist')
 			cy.get('.board .card').should('have.length', 5)
 		})
 
 		it('Adds overdue open cards to a period on request', function() {
-			cy.get('label[for="duePeriod"]').click()
+			cy.get('label[for="dueCalendarWeek"]').click()
 			// Vue ignores events not newer than their listener, which a frozen clock guarantees
 			cy.tick(1000)
 			cy.get('.filter [aria-label="Next week"]').click()

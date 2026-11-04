@@ -132,7 +132,6 @@
 												</span>
 											</button>
 											<NcButton
-												v-if="canEdit"
 												variant="tertiary"
 												size="small"
 												:aria-label="t('deck', 'Delete saved filter {name}', { name: saved.name })"
@@ -168,6 +167,9 @@
 											v-model="savedFilterName"
 											:label="t('deck', 'Name of the filter')"
 											:maxlength="100" />
+										<p v-if="replacedSavedFilter" class="filter--save-hint">
+											{{ t('deck', 'Replaces the saved filter "{name}".', { name: replacedSavedFilter.name }) }}
+										</p>
 										<p v-if="filter.due === 'calendarWeek'" class="filter--save-hint">
 											{{ t('deck', 'The saved filter always shows the current week.') }}
 										</p>
@@ -179,12 +181,12 @@
 												{{ t('deck', 'Cancel') }}
 											</NcButton>
 											<NcButton type="submit" variant="primary" :disabled="savedFilterName.trim() === ''">
-												{{ t('deck', 'Save') }}
+												{{ replacedSavedFilter ? t('deck', 'Replace') : t('deck', 'Save') }}
 											</NcButton>
 										</div>
 									</form>
 									<NcButton
-										v-else-if="canEdit"
+										v-else
 										ref="saveFilterButton"
 										:disabled="!isFilterActive"
 										:title="isFilterActive ? undefined : t('deck', 'Choose a filter first to save it')"
@@ -192,7 +194,11 @@
 										@click="startSavingFilter">
 										{{ t('deck', 'Save filter…') }}
 									</NcButton>
-									<NcButton :disabled="!isFilterActive" :wide="true" @click="clearFilterFromPopover">
+									<NcButton
+										v-if="!isSavingFilter"
+										:disabled="!isFilterActive"
+										:wide="true"
+										@click="clearFilterFromPopover">
 										{{ t('deck', 'Clear filter') }}
 									</NcButton>
 								</template>
@@ -393,6 +399,7 @@
 													name="filter-due"
 													class="radio"
 													value="dueToday"
+													aria-describedby="filter-due-next-hint"
 													@change="setFilter"
 													@click="beforeSetFilter">
 												<label for="dueToday">{{ t('deck', 'Next 24 hours') }}</label>
@@ -406,6 +413,7 @@
 													name="filter-due"
 													class="radio"
 													value="dueWeek"
+													aria-describedby="filter-due-next-hint"
 													@change="setFilter"
 													@click="beforeSetFilter">
 												<label for="dueWeek">{{ t('deck', 'Next 7 days') }}</label>
@@ -419,9 +427,43 @@
 													name="filter-due"
 													class="radio"
 													value="dueMonth"
+													aria-describedby="filter-due-next-hint"
 													@change="setFilter"
 													@click="beforeSetFilter">
 												<label for="dueMonth">{{ t('deck', 'Next 30 days') }}</label>
+											</div>
+
+											<p id="filter-due-next-hint" class="filter--hint">
+												{{ t('deck', 'Counted from now, without overdue cards') }}
+											</p>
+
+											<div class="filter--item">
+												<input
+													id="dueCalendarWeek"
+													:checked="filter.due === 'calendarWeek'"
+													type="radio"
+													name="filter-due"
+													class="radio"
+													value="calendarWeek"
+													@click="togglePeriod('calendarWeek')">
+												<label for="dueCalendarWeek">{{ t('deck', 'Calendar week') }}</label>
+											</div>
+											<!-- the period controls belong to the option right above them -->
+											<div v-if="filter.due === 'calendarWeek'" class="filter--due-options">
+												<DueDateRangeFilter
+													mode="calendarWeek"
+													:from="filter.dueFrom"
+													:to="filter.dueTo"
+													@update="updateDueRange" />
+												<div class="filter--item">
+													<input
+														id="due-include-overdue"
+														v-model="filter.dueIncludeOverdue"
+														type="checkbox"
+														class="checkbox"
+														@change="setFilter">
+													<label for="due-include-overdue">{{ t('deck', 'Also show overdue open cards') }}</label>
+												</div>
 											</div>
 
 											<div class="filter--item">
@@ -432,10 +474,9 @@
 													name="filter-due"
 													class="radio"
 													value="period"
-													@click="togglePeriod">
-												<label for="duePeriod">{{ t('deck', 'Period…') }}</label>
+													@click="togglePeriod('calendarMonth')">
+												<label for="duePeriod">{{ t('deck', 'Month or date range') }}</label>
 											</div>
-											<!-- the period controls belong to the option right above them -->
 											<div v-if="isDuePeriod" class="filter--due-options">
 												<div
 													class="filter--match"
@@ -683,7 +724,6 @@ export default {
 	computed: {
 		...mapState(useBoardStore, { storeFilter: 'filter' }),
 		...mapState(useBoardStore, [
-			'canEdit',
 			'canManage',
 			'viewMode',
 			'showArchived',
@@ -747,16 +787,26 @@ export default {
 			]
 		},
 
+		/**
+		 * The saved filter that saving under the typed name would replace; names ignore case.
+		 *
+		 * @return {object|undefined}
+		 */
+		replacedSavedFilter() {
+			const name = this.savedFilterName.trim().toLowerCase()
+			return name ? this.savedFilters.find((saved) => saved.name.toLowerCase() === name) : undefined
+		},
+
 		dueRangeOptions() {
 			return [
-				{ value: 'calendarWeek', label: t('deck', 'Week') },
 				{ value: 'calendarMonth', label: t('deck', 'Month') },
 				{ value: 'range', label: t('deck', 'Range') },
 			]
 		},
 
 		isDuePeriod() {
-			return ['calendarWeek', 'calendarMonth', 'range'].includes(this.filter.due)
+			// the calendar week has an option of its own, being what most people look for
+			return ['calendarMonth', 'range'].includes(this.filter.due)
 		},
 
 		isFilterActive() {
@@ -894,13 +944,19 @@ export default {
 			this.setFilterInStore({ ...this.filter })
 		},
 
-		togglePeriod() {
-			// like the other due date options, choosing "Period…" again turns it off
-			if (this.isDuePeriod) {
+		/**
+		 * Like the other due date options, choosing the calendar week or "Month or date range"
+		 * again turns it off.
+		 *
+		 * @param {string} mode 'calendarWeek', or 'calendarMonth' as the start of "Month or date range"
+		 */
+		togglePeriod(mode) {
+			const active = mode === 'calendarWeek' ? this.filter.due === 'calendarWeek' : this.isDuePeriod
+			if (active) {
 				this.filter.due = ''
 				this.setFilterInStore({ ...this.filter })
 			} else {
-				this.choosePeriod('calendarWeek')
+				this.choosePeriod(mode)
 			}
 		},
 
@@ -917,12 +973,6 @@ export default {
 		},
 
 		/**
-		 * Move focus to the index-th match of a selector inside the filter popover, after the next render.
-		 *
-		 * @param {string} selector elements to choose from, in document order
-		 * @param {number} index position to focus, clamped to the last match
-		 */
-		/**
 		 * Write the popover's filter to the store, remembering the result.
 		 *
 		 * @param {object} filter filter values to write
@@ -932,6 +982,12 @@ export default {
 			this.storeSetFilter(filter)
 		},
 
+		/**
+		 * Move focus to the index-th match of a selector inside the filter popover, after the next render.
+		 *
+		 * @param {string} selector elements to choose from, in document order
+		 * @param {number} index position to focus, clamped to the last match
+		 */
 		focusInFilter(selector, index = 0) {
 			this.$nextTick(() => {
 				const elements = this.$refs.filterContent?.querySelectorAll(selector) ?? []
@@ -950,7 +1006,14 @@ export default {
 		 */
 		openFacet(facet) {
 			this.filterView = facet
-			this.focusInFilter('.filter--facet-view input:not([disabled]), .filter--facet-view button:not([disabled])')
+			this.$nextTick(() => {
+				// start at the chosen option: on an unchecked radio, an arrow key would change the filter
+				const view = this.$refs.filterContent?.querySelector('.filter--facet-view')
+				const target = view?.querySelector('.filter--item input[type="radio"]:checked')
+					?? view?.querySelector('.filter--item input:not([type="radio"]):not([disabled])')
+					?? view?.querySelector('input:not([disabled]), button:not([disabled])')
+				target?.focus()
+			})
 		},
 
 		closeFacet() {
@@ -1427,6 +1490,14 @@ export default {
 		font-size: var(--font-size-small, 13px);
 	}
 
+	.filter--hint {
+		margin: 0 0 var(--default-grid-baseline);
+		// in line with the option labels
+		padding-inline-start: calc(var(--default-clickable-area) - var(--default-grid-baseline));
+		color: var(--color-text-maxcontrast);
+		font-size: var(--font-size-small, 13px);
+	}
+
 	.filter--save-actions {
 		display: flex;
 		justify-content: flex-end;
@@ -1442,9 +1513,7 @@ export default {
 		display: flex;
 		margin-bottom: var(--default-grid-baseline);
 
-		> * {
-			flex: 1;
-		}
+		// stretched segments would only be clickable on their text, so they keep their size
 	}
 
 	.filter--heading {

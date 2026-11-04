@@ -18,9 +18,14 @@ export const useCardStore = defineStore('card', {
 		cards: [],
 	}),
 	getters: {
+		/**
+		 * @param state
+		 * @return {(id: number, filter?: object) => Array} the cards of a stack that match the board filter
+		 * (or the given one, to try out a different filter) and the search
+		 */
 		cardsByStack(state) {
-			return (id) => state.cards.filter((card) => {
-				const { tags, tagMatch, excludedTags = [], users, userMatch, excludedUsers = [], due, dueFrom, dueTo, dueIncludeOverdue, unassigned, completed } = useBoardStore().filter
+			return (id, filter = useBoardStore().filter) => state.cards.filter((card) => {
+				const { tags, tagMatch, excludedTags = [], users, userMatch, excludedUsers = [], due, dueFrom, dueTo, dueIncludeOverdue, unassigned, completed } = filter
 				if (completed === 'open' && card.done !== null) {
 					return false
 				}
@@ -208,14 +213,15 @@ export const useCardStore = defineStore('card', {
 		},
 		/**
 		 * @param state
-		 * @return {(boardId: number, options?: {filtered?: boolean}) => number} number of cards the board shows,
-		 * respecting whether archived cards are shown; with filtered: false, ignoring the filter and search
+		 * @return {(boardId: number, options?: {filtered?: boolean, filter?: object}) => number} number of cards the
+		 * board shows, respecting whether archived cards are shown; with filtered: false, ignoring the filter and
+		 * search; with a filter, the number that filter would show
 		 */
 		cardCountOnBoard(state) {
-			return (boardId, { filtered = true } = {}) => {
+			return (boardId, { filtered = true, filter = undefined } = {}) => {
 				const showArchived = useBoardStore().showArchived
 				return useStackStore().stacksByBoard(boardId).reduce((count, stack) => {
-					const cards = filtered ? this.cardsByStack(stack.id) : state.cards.filter((card) => card.stackId === stack.id)
+					const cards = filtered ? this.cardsByStack(stack.id, filter) : state.cards.filter((card) => card.stackId === stack.id)
 					return count + cards.filter((card) => !!card.archived === showArchived).length
 				}, 0)
 			}

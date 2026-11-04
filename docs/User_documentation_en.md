@@ -97,21 +97,21 @@ The filter of a board is kept in your browser, so it is still applied when you r
 
 A chip for a calendar week or month shows its dates and has arrows to move to the previous or next week or month without opening the filter.
 
-If no card matches, the chips say so. When several tags or users are combined with **All**, a button next to them shows the cards with any of them instead.
+If no card matches, the chips say so and offer the smallest change that shows cards again, with how many, for example "Show 3 cards with any of these tags" (when several tags or users are combined with **All**) or "Show 1 card without "Completed"". When no single change helps, **Clear filter** is left.
 
 Once you select two or more tags, **Any | All** appears next to the "Tags" heading in the tag options and decides whether a card needs any or all of them to be shown. By default a card needs all of them. Under "Assigned to" you are listed first, marked "(you)", to quickly show your own cards. Next to "Assigned to", **Any | All** does the same for users, where any of them is enough by default. Your choice is remembered for each board in your browser, also when you clear the filter.
 
 To leave cards out instead, use the minus button at the end of a tag or user; it appears when you point at the row or move the keyboard focus to it. Cards carrying that tag, or assigned to that user, are hidden, whatever else is selected. Click the button again, or select the tag or user, to stop hiding them.
 
-Besides the fixed periods (overdue, the next 24 hours, 7 days or 30 days, or no due date; the "next" periods only include cards due in the future), **Period…** filters by a period of your choice. Pick its kind below it:
+Besides the fixed periods (overdue, the next 24 hours, 7 days or 30 days, or no due date; the "next" periods are counted from now and only include cards due in the future), you can filter by calendar periods:
 
-- **Week**: cards due in one calendar week, Monday to Sunday. It starts at the current week; use the arrows to move to earlier or later weeks.
-- **Month**: the same for whole months.
-- **Range**: cards due between a start and an end date, both days included. Leave one of them empty to show everything due after the start or before the end.
+- **Calendar week**: cards due in one calendar week, Monday to Sunday. It starts at the current week; use the arrows to move to earlier or later weeks.
+- **Month or date range**, then **Month**: the same for whole months.
+- **Month or date range**, then **Range**: cards due between a start and an end date, both days included. Leave one of them empty to show everything due after the start or before the end.
 
 **Also show overdue open cards** adds the cards whose due date has passed but that are not done yet, for example to review this week's cards together with everything that is late.
 
-If you use the same filter regularly, set it up and choose **Save filter…** at the bottom of the filter menu. Saved filters are listed at the top of the filter menu of that board, each with a short summary of what it shows; click one to apply it, or use the bin icon to delete it (the notification that follows lets you undo that). The saved filter that matches the current filter is marked with a check mark. Saved filters are personal: other people on the board do not see them. A saved calendar week or month always means the current one when you apply it later, and it stays recognised while you step to other weeks or months; a custom date range keeps its dates.
+If you use the same filter regularly, set it up and choose **Save filter…** at the bottom of the filter menu. Saving under the name of an existing saved filter replaces it; the form says so before you save. Saved filters are listed at the top of the filter menu of that board, each with a short summary of what it shows; click one to apply it, or use the bin icon to delete it (the notification that follows lets you undo that). The saved filter that matches the current filter is marked with a check mark. Saved filters are personal: other people on the board do not see them, and you can save filters on boards you can only read. A saved calendar week or month always means the current one when you apply it later, and it stays recognised while you step to other weeks or months; a custom date range keeps its dates.
 
 ### 7. Sharing boards
 You can share boards with a user, a group, or, if you are using the [Circles](https://apps.nextcloud.com/apps/circles) app, with a circle.
