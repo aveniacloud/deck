@@ -91,13 +91,15 @@ The **Activity** allows you to see everything that happened in your boards. Ever
 #### Filter cards
 The filter button next to the search field narrows the board down to the cards you are interested in. You can filter by tag, by assigned user, by status and by due date, and combine these filters.
 
+The filter menu first lists these four, each with what it currently filters, for example "Tags: Finished". Choose one to see its options, and **Back to filters** to return to the list. Your saved filters, **Save filter…** and **Clear filter** are on that list as well.
+
 The filter of a board is kept in your browser, so it is still applied when you reload or come back to the board (a calendar week or month then shows the current one). While a filter is active, it is shown as chips below the board title, for example "HRS or GMA", "Not: bob", "Open" or "Week 45, 2026 · Nov 2 – 8". Remove a single part of the filter with the cross on its chip, or everything with **Clear filter** next to the chips. When the filter matches one of your saved filters, its name is shown as the first chip.
 
 A chip for a calendar week or month shows its dates and has arrows to move to the previous or next week or month without opening the filter.
 
 If no card matches, the chips say so. When several tags or users are combined with **All**, a button next to them shows the cards with any of them instead.
 
-Once you select two or more tags, **Any | All** appears next to the "Tags" heading and decides whether a card needs any or all of them to be shown. By default a card needs all of them. Under "Assigned to" you are listed first, marked "(you)", to quickly show your own cards. Next to "Assigned to", **Any | All** does the same for users, where any of them is enough by default. Your choice is remembered for each board in your browser, also when you clear the filter.
+Once you select two or more tags, **Any | All** appears next to the "Tags" heading in the tag options and decides whether a card needs any or all of them to be shown. By default a card needs all of them. Under "Assigned to" you are listed first, marked "(you)", to quickly show your own cards. Next to "Assigned to", **Any | All** does the same for users, where any of them is enough by default. Your choice is remembered for each board in your browser, also when you clear the filter.
 
 To leave cards out instead, use the minus button at the end of a tag or user; it appears when you point at the row or move the keyboard focus to it. Cards carrying that tag, or assigned to that user, are hidden, whatever else is selected. Click the button again, or select the tag or user, to stop hiding them.
 

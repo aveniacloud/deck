@@ -10,6 +10,9 @@ const user = randUser()
 // the any/all switch keeps its radio input visually hidden; click its label like a user would
 const chooseMatch = (mode) => cy.get(`input[data-cy-match="${mode}"]`).parent().click()
 const choosePeriodKind = (kind) => cy.get(`input[data-cy-period="${kind}"]`).parent().click()
+// the popover starts at an overview of the facets, each opening its own options
+const openFacet = (facet) => cy.get(`[data-cy-facet="${facet}"]`).click()
+const backToFilters = () => cy.get('[data-cy-filter-back]').click()
 
 // sampleBoard() only ships one card, so searching would have nothing to discriminate
 const filterBoard = {
@@ -187,7 +190,21 @@ describe('Board filter', function() {
 			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
 			cy.get('.board .card').should('have.length', 4)
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('tags')
 			cy.get('.filter label:contains("Finished")').click()
+		})
+
+		it('Shows the facets first and their options one at a time', function() {
+			backToFilters()
+
+			cy.get('[data-cy-facet="tags"]').should('contain', 'Finished')
+			cy.get('[data-cy-facet="status"]').should('not.contain', 'Open')
+			cy.focused().should('have.attr', 'data-cy-facet', 'tags')
+			cy.get('.filter label:contains("Finished")').should('not.exist')
+
+			openFacet('status')
+			cy.focused().should('have.id', 'filter-option-both')
+			cy.get('.filter label:contains("Finished")').should('not.exist')
 		})
 
 		it('Offers the match mode once two tags are selected', function() {
@@ -205,14 +222,15 @@ describe('Board filter', function() {
 		it('Returns focus to the filter button when the popover is closed with Escape', function() {
 			cy.focused().type('{esc}')
 
-			cy.get('.filter').should('not.be.visible')
+			cy.get('.filter').should('not.exist')
 			cy.focused().should('have.attr', 'aria-label', 'Apply filter')
 		})
 
 		it('Keeps focus in the popover after clearing the filter', function() {
+			backToFilters()
 			cy.get('.filter button:contains("Clear filter")').click()
 
-			cy.focused().should('match', '.filter--item input')
+			cy.focused().should('match', '.filter--facet')
 			cy.get('p.hidden-visually[aria-live]').should('contain', '4 cards shown')
 		})
 
@@ -235,8 +253,10 @@ describe('Board filter', function() {
 			cy.get('.filter label:contains("To review")').click()
 			chooseMatch('tags-any')
 
+			backToFilters()
 			cy.get('.filter button:contains("Clear filter")').click()
 			cy.get('.board .card').should('have.length', 4)
+			openFacet('tags')
 			cy.get('.filter label:contains("Finished")').click()
 			cy.get('.filter label:contains("To review")').click()
 			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
@@ -245,6 +265,7 @@ describe('Board filter', function() {
 			cy.reload()
 			cy.get('.board .card').should('have.length', 3)
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('tags')
 			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
 		})
 	})
@@ -255,6 +276,7 @@ describe('Board filter', function() {
 			cy.visit(`/apps/deck/#/board/${userBoardId}`)
 			cy.get('.board .card').should('have.length', 4)
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('users')
 			cy.get(`label[for="${alice.userId}"]`).click()
 		})
 
@@ -289,8 +311,10 @@ describe('Board filter', function() {
 			cy.get(`label[for="${bob.userId}"]`).click()
 			chooseMatch('users-all')
 
+			backToFilters()
 			cy.get('.filter button:contains("Clear filter")').click()
 			cy.get('.board .card').should('have.length', 4)
+			openFacet('users')
 			cy.get(`label[for="${alice.userId}"]`).click()
 			cy.get(`label[for="${bob.userId}"]`).click()
 			cy.get('input[data-cy-match="users-all"]').should('be.checked')
@@ -310,6 +334,7 @@ describe('Board filter', function() {
 
 		it('Shows the filter as chips and removes it from there', function() {
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('tags')
 			cy.get('.filter label:contains("Finished")').click()
 			cy.get('.filter label:contains("To review")').click()
 			cy.get('[aria-label="Hide cards with tag Action needed"]').click()
@@ -322,12 +347,12 @@ describe('Board filter', function() {
 
 			cy.get('.active-filters li').should('have.length', 1)
 			cy.focused().should('have.attr', 'aria-label', 'Remove filter Not: Action needed')
-			cy.get('.filter label:contains("Finished")').parent().find('input').should('not.be.checked')
 			cy.get('.board .card').should('have.length', 3)
 		})
 
 		it('Returns focus to the filter button when the last chip is removed', function() {
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('tags')
 			cy.get('.filter label:contains("Finished")').click()
 			cy.get('[aria-label="Apply filter"]').click()
 
@@ -339,7 +364,10 @@ describe('Board filter', function() {
 
 		it('Clears everything from the chip bar', function() {
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('tags')
 			cy.get('.filter label:contains("Finished")').click()
+			backToFilters()
+			openFacet('status')
 			cy.get('label[for="filter-option-open"]').click()
 			cy.get('[aria-label="Remove filter Status: Open"]').should('exist')
 
@@ -347,11 +375,11 @@ describe('Board filter', function() {
 
 			cy.get('.active-filters').should('not.exist')
 			cy.get('.board .card').should('have.length', 4)
-			cy.get('#filter-option-both').should('be.checked')
 		})
 
 		it('Explains an empty result and offers to widen "all" to "any"', function() {
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('tags')
 			cy.get('.filter label:contains("Finished")').click()
 			cy.get('.active-filters__empty').should('not.exist')
 			cy.get('.filter label:contains("Finished")').click()
@@ -370,6 +398,7 @@ describe('Board filter', function() {
 
 		it('Keeps the filter after a reload until it is cleared', function() {
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('tags')
 			cy.get('.filter label:contains("Finished")').click()
 			cy.get('.board .card').should('have.length', 2)
 
@@ -389,6 +418,7 @@ describe('Board filter', function() {
 
 			cy.get('.active-filters li').should('contain', 'To review')
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('tags')
 			cy.get('.filter label:contains("To review")').parent().find('input').should('be.checked')
 		})
 	})
@@ -398,6 +428,7 @@ describe('Board filter', function() {
 			cy.login(user)
 			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('tags')
 
 			cy.get('[aria-label="Hide cards with tag Later"]').should('have.css', 'opacity', '0')
 			cy.get('[aria-label="Hide cards with tag Later"]').focus()
@@ -412,6 +443,7 @@ describe('Board filter', function() {
 			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
 			cy.get('.board .card').should('have.length', 4)
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('tags')
 
 			cy.get('[aria-label="Hide cards with tag Finished"]').click()
 
@@ -426,6 +458,7 @@ describe('Board filter', function() {
 			cy.visit(`/apps/deck/#/board/${userBoardId}`)
 			cy.get('.board .card').should('have.length', 4)
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('users')
 
 			cy.get(`[aria-label="Hide cards assigned to ${bob.userId}"]`).click()
 
@@ -439,6 +472,7 @@ describe('Board filter', function() {
 			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
 			cy.get('.board .card').should('have.length', 4)
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('tags')
 			cy.get('[aria-label="Hide cards with tag Finished"]').click()
 			cy.get('.board .card').should('have.length', 2)
 
@@ -457,7 +491,9 @@ describe('Board filter', function() {
 			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
 			cy.get('.board .card').should('have.length', 4)
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('tags')
 			cy.get('.filter label:contains("Finished")').click()
+			backToFilters()
 
 			cy.get('.filter button:contains("Save filter")').click()
 			cy.focused().should('match', '.filter--save input')
@@ -475,10 +511,12 @@ describe('Board filter', function() {
 			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
 			cy.get('.board .card').should('have.length', 4)
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('tags')
 			cy.get('.filter label:contains("Finished")').click()
 			cy.get('.filter label:contains("To review")').click()
 			chooseMatch('tags-any')
 			cy.get('.board .card').should('have.length', 3)
+			backToFilters()
 
 			cy.get('.filter button:contains("Save filter")').click()
 			cy.get('.filter--save input').type('Finished or review')
@@ -497,15 +535,19 @@ describe('Board filter', function() {
 				.click()
 
 			cy.get('.board .card').should('have.length', 3)
-			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
 			cy.get('.filter--saved-apply:contains("Finished or review")').should('have.attr', 'aria-pressed', 'true')
 			cy.get('.active-filters li').first().should('contain', 'Finished or review')
 			cy.get('.active-filters li').first().find('[aria-label="Remove saved filter Finished or review"]').should('exist')
+			openFacet('tags')
+			cy.get('input[data-cy-match="tags-any"]').should('be.checked')
 
 			// changing the filter means the saved one no longer applies
 			chooseMatch('tags-all')
+			backToFilters()
 			cy.get('.filter--saved-apply:contains("Finished or review")').should('have.attr', 'aria-pressed', 'false')
+			openFacet('tags')
 			chooseMatch('tags-any')
+			backToFilters()
 
 			cy.get('[aria-label="Delete saved filter Finished or review"]').click()
 			cy.wait('@saveFilters')
@@ -534,6 +576,7 @@ describe('Board filter', function() {
 
 		it('Leaves overdue cards out of the next 7 days', function() {
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('due')
 			cy.get('label[for="dueWeek"]').click()
 
 			cy.get('.board .card').should('have.length', 2)
@@ -542,6 +585,7 @@ describe('Board filter', function() {
 
 		it('Leaves overdue cards out of the next 24 hours', function() {
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('due')
 			cy.get('label[for="dueToday"]').click()
 
 			cy.get('.board .card').should('have.length', 1)
@@ -550,6 +594,7 @@ describe('Board filter', function() {
 
 		it('Leaves overdue cards out of the next 30 days', function() {
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('due')
 			cy.get('label[for="dueMonth"]').click()
 
 			cy.get('.board .card').should('have.length', 3)
@@ -558,9 +603,15 @@ describe('Board filter', function() {
 
 		it('Keeps the status filter when a due date option is picked', function() {
 			cy.get('[aria-label="Apply filter"]').click()
+			openFacet('status')
 			cy.get('label[for="filter-option-open"]').click()
+			backToFilters()
+			openFacet('due')
 			cy.get('label[for="overdue"]').click()
+			backToFilters()
 
+			cy.get('[data-cy-facet="status"]').should('contain', 'Open')
+			openFacet('status')
 			cy.get('#filter-option-open').should('be.checked')
 			cy.get('.board .card').should('have.length', 1)
 		})
@@ -591,6 +642,10 @@ describe('Board filter', function() {
 			cy.visit(`/apps/deck/#/board/${rangeBoardId}`)
 			cy.get('.board .card').should('have.length', 5)
 			cy.get('[aria-label="Apply filter"]').click()
+			// Vue ignores events not newer than their listener, which a frozen clock guarantees
+			cy.tick(1000)
+			openFacet('due')
+			cy.tick(1000)
 		})
 
 		it('Starts at the current calendar week and steps through weeks', function() {
@@ -631,6 +686,8 @@ describe('Board filter', function() {
 
 		it('Keeps a saved current week recognised while stepping to other weeks', function() {
 			cy.get('label[for="duePeriod"]').click()
+			cy.tick(1000)
+			backToFilters()
 			cy.get('.filter button:contains("Save filter")').click()
 			cy.get('.filter--save-hint').should('contain', 'always shows the current week')
 			cy.intercept('POST', '**/config/board:*:savedFilters').as('saveFilters')
@@ -640,11 +697,16 @@ describe('Board filter', function() {
 
 			// Vue ignores events not newer than their listener, which a frozen clock guarantees
 			cy.tick(1000)
+			openFacet('due')
+			cy.tick(1000)
 			cy.get('.filter [aria-label="Next week"]').click()
 
 			cy.get('.active-filters li').first().should('contain', 'Weekly')
 			cy.get('.active-filters li').should('contain', 'Week 45, 2026 · Nov 2')
 
+			cy.tick(1000)
+			backToFilters()
+			cy.tick(1000)
 			cy.get('[aria-label="Delete saved filter Weekly"]').click()
 			cy.wait('@saveFilters')
 		})
