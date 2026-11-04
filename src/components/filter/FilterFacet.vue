@@ -152,13 +152,9 @@
 					name="filter-due"
 					class="radio"
 					:value="option.value"
-					:aria-describedby="option.counted ? 'filter-due-next-hint' : null"
 					@click="chooseDue(option.value)">
 				<label :for="option.value">{{ option.label }}</label>
 			</div>
-			<p id="filter-due-next-hint" class="filter--hint">
-				{{ t('deck', 'Counted from now, without overdue cards') }}
-			</p>
 
 			<div class="filter--item">
 				<input
@@ -324,9 +320,9 @@ export default {
 		dueOptions() {
 			return [
 				{ value: 'overdue', label: t('deck', 'Overdue') },
-				{ value: 'dueToday', label: t('deck', 'Next 24 hours'), counted: true },
-				{ value: 'dueWeek', label: t('deck', 'Next 7 days'), counted: true },
-				{ value: 'dueMonth', label: t('deck', 'Next 30 days'), counted: true },
+				{ value: 'dueToday', label: t('deck', 'Next 24 hours') },
+				{ value: 'dueWeek', label: t('deck', 'Next 7 days') },
+				{ value: 'dueMonth', label: t('deck', 'Next 30 days') },
 			]
 		},
 
@@ -488,14 +484,6 @@ export default {
 	opacity: .7;
 }
 
-.filter--hint {
-	margin: 0 0 var(--default-grid-baseline);
-	// in line with the option labels
-	padding-inline-start: calc(var(--default-clickable-area) - var(--default-grid-baseline));
-	color: var(--color-text-maxcontrast);
-	font-size: var(--font-size-small, 13px);
-}
-
 .filter--due-options {
 	margin-block-end: calc(2 * var(--default-grid-baseline));
 	margin-inline-start: calc(4 * var(--default-grid-baseline));
@@ -528,19 +516,15 @@ export default {
 	}
 }
 
-// hide buttons only take attention where a pointer can reveal them; touch screens keep showing them
-@media (hover: hover) {
-	.filter--item-excludable .filter--hide {
-		transition: opacity var(--animation-quick) ease-out;
-	}
+// the hide buttons are always there, so they never come and go while moving through the list,
+// but stay muted until they are used
+.filter--item-excludable .filter--hide:not([aria-pressed='true']) {
+	color: var(--color-text-maxcontrast);
+	transition: color var(--animation-quick) ease-out;
 
-	.filter--item-excludable .filter--hide:not([aria-pressed='true']) {
-		opacity: 0;
-	}
-
-	.filter--item-excludable:hover .filter--hide,
-	.filter--item-excludable:focus-within .filter--hide {
-		opacity: 1;
+	&:hover,
+	&:focus-visible {
+		color: var(--color-main-text);
 	}
 }
 

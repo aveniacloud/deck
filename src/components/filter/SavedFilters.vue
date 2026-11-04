@@ -5,10 +5,10 @@
 
 <template>
 	<div ref="root" class="saved-filters">
-		<template v-if="section !== 'save' && savedFilters.length > 0">
-			<h3 class="saved-filters__heading">
-				{{ t('deck', 'Saved filters') }}
-			</h3>
+		<h3 class="saved-filters__heading">
+			{{ t('deck', 'Saved filters') }}
+		</h3>
+		<template v-if="savedFilters.length > 0">
 			<ul class="saved-filters__list">
 				<li v-for="({ saved, summary, active }, index) in rows" :key="saved.name" class="filter--saved">
 					<button
@@ -38,7 +38,7 @@
 			</ul>
 		</template>
 
-		<form v-if="section !== 'list' && isSaving" class="filter--save" @submit.prevent="save">
+		<form v-if="isSaving" class="filter--save" @submit.prevent="save">
 			<NcTextField
 				ref="name"
 				v-model="name"
@@ -62,7 +62,7 @@
 				</NcButton>
 			</div>
 		</form>
-		<template v-else-if="section !== 'list'">
+		<template v-else>
 			<NcButton
 				ref="saveButton"
 				:disabled="!filterActive"
@@ -109,19 +109,9 @@ export default {
 			type: Object,
 			required: true,
 		},
-
-		/**
-		 * 'all', or only the 'list' of saved filters or the 'save' button and form, for menus that
-		 * show them apart; there the parent moves focus between them (saved and removed events)
-		 */
-		section: {
-			type: String,
-			default: 'all',
-		},
 	},
 
-	// saving: whether the form to name a new saved filter is open
-	emits: ['applied', 'saving', 'saved', 'removed'],
+	emits: ['applied'],
 
 	data() {
 		return {
@@ -166,8 +156,11 @@ export default {
 			this.cancel()
 		},
 
-		isSaving(saving) {
-			this.$emit('saving', saving)
+		// there is nothing left to save once the filter is cleared while naming it
+		filterActive(active) {
+			if (!active) {
+				this.cancel()
+			}
 		},
 	},
 
@@ -222,8 +215,7 @@ export default {
 			const remaining = before.filter((saved, i) => i !== index)
 			this.store(remaining)
 			showUndo(t('deck', 'Saved filter "{name}" deleted', { name: before[index].name }), () => this.store(before))
-			this.focusAt('.filter--saved-apply', index, this.section === 'all')
-			this.$emit('removed', remaining.length)
+			this.focusAt('.filter--saved-apply', index, true)
 		},
 
 		startSaving() {
@@ -244,10 +236,7 @@ export default {
 			this.isSaving = false
 			this.name = ''
 			// focus the new entry, which also scrolls it into view as confirmation
-			if (this.section === 'all') {
-				this.focusAt('.filter--saved-apply', others.length)
-			}
-			this.$emit('saved', others.length)
+			this.focusAt('.filter--saved-apply', others.length)
 		},
 
 		cancel() {

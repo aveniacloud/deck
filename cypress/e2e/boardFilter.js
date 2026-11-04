@@ -451,18 +451,29 @@ describe('Board filter', function() {
 	})
 
 	describe('Hiding tags and users', function() {
-		it('Reveals the hide buttons only on hover or focus, unless pressed', function() {
+		it('Always shows the hide buttons, muted until pressed', function() {
 			cy.login(user)
 			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
 			cy.get('[aria-label="Apply filter"]').click()
 			openFacet('tags')
 
-			cy.get('[aria-label="Hide cards with tag Later"]').should('have.css', 'opacity', '0')
-			cy.get('[aria-label="Hide cards with tag Later"]').focus()
-			cy.get('[aria-label="Hide cards with tag Later"]').should('have.css', 'opacity', '1')
-			cy.get('[aria-label="Hide cards with tag Later"]').click()
-			cy.get('.filter label:contains("Finished")').click()
-			cy.get('[aria-label="Hide cards with tag Later"]').should('have.css', 'opacity', '1')
+			const hide = '[aria-label="Hide cards with tag Later"]'
+			const other = '[aria-label="Hide cards with tag Finished"]'
+			cy.get(hide).should('have.css', 'opacity', '1')
+			cy.get(other).should('have.css', 'opacity', '1')
+			cy.get(hide).then(($button) => {
+				const muted = getComputedStyle($button[0]).color
+				cy.get(hide).click()
+				cy.get(hide).should('have.attr', 'aria-pressed', 'true')
+				// leave the pointer elsewhere, so only the pressed state can make it stronger
+				cy.get('.filter label:contains("Finished")').click()
+				cy.get(hide).should(($pressed) => {
+					expect(getComputedStyle($pressed[0]).color).not.to.eq(muted)
+				})
+				cy.get(other).should(($unpressed) => {
+					expect(getComputedStyle($unpressed[0]).color).to.eq(muted)
+				})
+			})
 		})
 
 		it('Hides cards that carry a hidden tag', function() {
@@ -518,9 +529,14 @@ describe('Board filter', function() {
 			cy.visit(`/apps/deck/#/board/${tagBoardId}`)
 			cy.get('.board .card').should('have.length', 4)
 			cy.get('[aria-label="Apply filter"]').click()
+			// the filter comes first, the saved filters follow apart from it; clearing is offered once there is a filter
+			cy.get('.filter > .filter--group').first().should('contain', 'Filter by')
+			cy.get('.filter > .filter--group').last().should('contain', 'Saved filters')
+			cy.get('[data-cy-filter-clear]').should('not.exist')
 			openFacet('tags')
 			cy.get('.filter label:contains("Finished")').click()
 			backToFilters()
+			cy.get('[data-cy-filter-clear]').should('be.visible')
 
 			cy.get('.filter button:contains("Save filter")').click()
 			cy.focused().should('match', '.filter--save input')
@@ -557,8 +573,6 @@ describe('Board filter', function() {
 			cy.get('.filter--save input').type('finished OR review')
 			cy.get('.filter--save-hint').should('contain', 'Replaces the saved filter "Finished or review"')
 			cy.get('.filter--save button[type="submit"]').should('contain', 'Replace')
-			cy.get('.filter--save button:contains("Clear filter")').should('not.exist')
-			cy.get('.filter button:contains("Clear filter")').should('not.exist')
 			cy.get('.filter--save button:contains("Cancel")').click()
 
 			cy.reload()

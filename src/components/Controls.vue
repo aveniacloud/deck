@@ -129,16 +129,21 @@
 						<template #default>
 							<div ref="filterContent" class="filter">
 								<template v-if="filterView === null">
-									<SavedFilters
-										v-if="savedFilters.length > 0"
-										section="list"
-										:board="board"
-										class="filter--group"
-										@removed="onSavedFilterRemoved" />
+									<!-- the filter itself first, then what can be saved of it -->
 									<div class="filter--group">
-										<h3 v-if="savedFilters.length > 0" class="filter--group-heading">
-											{{ t('deck', 'Filter by') }}
-										</h3>
+										<div class="filter--group-header">
+											<h3 class="filter--group-heading">
+												{{ t('deck', 'Filter by') }}
+											</h3>
+											<NcButton
+												v-if="filterActive"
+												variant="tertiary"
+												size="small"
+												data-cy-filter-clear
+												@click="clearFilterFromPopover">
+												{{ t('deck', 'Clear filter') }}
+											</NcButton>
+										</div>
 										<ul class="filter--facets">
 											<li v-for="facet in facets" :key="facet.id">
 												<button
@@ -158,20 +163,9 @@
 											</li>
 										</ul>
 									</div>
-									<div class="filter--group">
-										<SavedFilters
-											section="save"
-											:board="board"
-											@saving="isSavingFilter = $event"
-											@saved="(index) => focusInFilter('.filter--saved-apply', index)" />
-										<NcButton
-											v-if="!isSavingFilter"
-											:disabled="!filterActive"
-											:wide="true"
-											@click="clearFilterFromPopover">
-											{{ t('deck', 'Clear filter') }}
-										</NcButton>
-									</div>
+									<SavedFilters
+										:board="board"
+										class="filter--group" />
 								</template>
 								<template v-else>
 									<NcButton
@@ -358,7 +352,6 @@ export default {
 			stack: '',
 			isAddStackVisible: false,
 			showAddCardModal: false,
-			isSavingFilter: false,
 			// null for the overview, otherwise the facet shown: 'tags', 'users', 'status' or 'due'
 			filterView: null,
 			filterAnnouncement: '',
@@ -398,10 +391,6 @@ export default {
 			return {
 				name: 'board.details',
 			}
-		},
-
-		savedFilters() {
-			return this.board?.settings?.savedFilters ?? []
 		},
 
 		visibleCardCount() {
@@ -447,7 +436,6 @@ export default {
 		'board.id': function() {
 			// opening another board brings its own (possibly restored) filter; not a result worth announcing
 			this.skipAnnouncement = true
-			this.isSavingFilter = false
 			this.filterView = null
 		},
 
@@ -558,15 +546,8 @@ export default {
 
 		clearFilterFromPopover() {
 			this.clearFilter()
-			// the clear button disables itself, so keep focus in the popover
+			// the clear button goes away, so keep focus in the popover
 			this.focusFirstFilterControl()
-		},
-
-		onSavedFilterRemoved(remaining) {
-			// the list moves focus to a remaining saved filter itself
-			if (remaining === 0) {
-				this.focusFirstFilterControl()
-			}
 		},
 
 		/**
@@ -800,17 +781,24 @@ export default {
 		padding: 8px;
 	}
 
-	// saved filters, the facets and the actions on the filter as a whole
+	// the filter with its facets, then the saved filters, apart from each other
 	.filter--group {
 		display: flex;
 		flex-direction: column;
 		gap: var(--default-grid-baseline);
 
 		& + & {
-			margin-top: calc(2 * var(--default-grid-baseline));
-			padding-top: calc(2 * var(--default-grid-baseline));
+			margin-top: calc(3 * var(--default-grid-baseline));
+			padding-top: calc(3 * var(--default-grid-baseline));
 			border-top: 1px solid var(--color-border);
 		}
+	}
+
+	.filter--group-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: calc(2 * var(--default-grid-baseline));
 	}
 
 	.filter--group-heading {
