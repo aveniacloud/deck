@@ -501,7 +501,6 @@ OC.L10N.register(
     "Replaces the saved filter \"{name}\"." : "Ersetzt den gespeicherten Filter „{name}“.",
     "Replace" : "Ersetzen",
     "Filter by" : "Filtern nach",
-    "Counted from now, without overdue cards" : "Ab jetzt gezählt, ohne überfällige Karten",
     "Calendar week" : "Kalenderwoche",
     "Month or date range" : "Monat oder Zeitspanne"
 },
