@@ -465,11 +465,8 @@ OC.L10N.register(
     "Hide cards assigned to {user}" : "Karten ausblenden, die {user} zugewiesen sind",
     "Hide cards assigned to this user" : "Karten ausblenden, die diesem Benutzer zugewiesen sind",
     "Status" : "Status",
-    "Kind of period" : "Art des Zeitraums",
     "Also show overdue open cards" : "Auch überfällige offene Karten anzeigen",
     "Week" : "Woche",
-    "Month" : "Monat",
-    "Range" : "Zeitspanne",
     "_%n card shown_::_%n cards shown_" : ["%n Karte angezeigt", "%n Karten angezeigt"],
     "The saved filters could not be updated" : "Die gespeicherten Filter konnten nicht aktualisiert werden",
     "Saved filter \"{name}\" deleted" : "Gespeicherter Filter „{name}“ gelöscht",
@@ -502,6 +499,7 @@ OC.L10N.register(
     "Replace" : "Ersetzen",
     "Filter by" : "Filtern nach",
     "Calendar week" : "Kalenderwoche",
-    "Month or date range" : "Monat oder Zeitspanne"
+    "Calendar month" : "Kalendermonat",
+    "Date range" : "Zeitspanne"
 },
 "nplurals=2; plural=(n != 1);");
