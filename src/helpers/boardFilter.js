@@ -214,3 +214,42 @@ function describeDue(filter, locale) {
 			return ''
 	}
 }
+
+/**
+ * The values that remove everything one facet filters, including its hidden entries.
+ * Match modes are kept: they are a preference rather than part of a filter.
+ */
+export const FACET_RESET = {
+	tags: { tags: [], excludedTags: [] },
+	users: { users: [], excludedUsers: [], unassigned: false },
+	status: { completed: 'both' },
+	due: { due: '', dueFrom: '', dueTo: '', dueIncludeOverdue: false },
+}
+
+const FACET_KINDS = {
+	tags: (part) => part.kind === 'tags' || part.id.startsWith('hidden-tag-'),
+	users: (part) => ['users', 'unassigned'].includes(part.kind) || part.id.startsWith('hidden-user-'),
+	status: (part) => part.kind === 'status',
+	due: (part) => part.kind === 'due',
+}
+
+/**
+ * What one facet currently filters, e.g. "Finished and To review · Not: Later".
+ *
+ * @param {Array} parts the result of filterParts()
+ * @param {string} facet 'tags', 'users', 'status' or 'due'
+ * @return {string} empty when the facet filters nothing
+ */
+export function facetValue(parts, facet) {
+	return parts.filter(FACET_KINDS[facet]).map((part) => part.label).join(' · ')
+}
+
+/**
+ * @param {object} filter board filter
+ * @return {boolean} whether the filter leaves out any card
+ */
+export function isFilterActive(filter) {
+	return filter.tags.length !== 0 || filter.users.length !== 0 || filter.unassigned
+		|| filter.excludedTags.length !== 0 || filter.excludedUsers.length !== 0
+		|| filter.due !== '' || filter.completed !== 'both'
+}

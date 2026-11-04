@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from '@jest/globals'
-import { describeFilter, filterParts, filtersEqual } from './boardFilter.js'
+import { describeFilter, facetValue, filterParts, filtersEqual, isFilterActive } from './boardFilter.js'
 
 const board = {
 	labels: [
@@ -134,5 +134,24 @@ describe('filterParts', () => {
 
 	it('is empty without a filter', () => {
 		expect(filterParts(empty, board, 'en')).toEqual([])
+	})
+})
+
+describe('facetValue', () => {
+	it('names what each facet filters, hidden entries included', () => {
+		const parts = filterParts({ ...empty, tags: [1], excludedTags: [3], excludedUsers: ['bob'], unassigned: true, completed: 'open' }, board, 'en')
+		expect(facetValue(parts, 'tags')).toBe('Finished · Not: Later')
+		expect(facetValue(parts, 'users')).toBe('Unassigned · Not: Bob')
+		expect(facetValue(parts, 'status')).toBe('Open')
+		expect(facetValue(parts, 'due')).toBe('')
+	})
+})
+
+describe('isFilterActive', () => {
+	it('counts every facet, also unassigned alone', () => {
+		expect(isFilterActive(empty)).toBe(false)
+		expect(isFilterActive({ ...empty, unassigned: true })).toBe(true)
+		expect(isFilterActive({ ...empty, excludedTags: [1] })).toBe(true)
+		expect(isFilterActive({ ...empty, tagMatch: 'any' })).toBe(false)
 	})
 })

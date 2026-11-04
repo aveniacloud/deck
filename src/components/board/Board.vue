@@ -4,7 +4,11 @@
 -->
 
 <template>
-	<div class="board-wrapper" :tabindex="-1" @touchend="fixActionRestriction">
+	<div
+		ref="wrapper"
+		class="board-wrapper"
+		:tabindex="-1"
+		@touchend="fixActionRestriction">
 		<Controls
 			:board="board"
 			showSearch
@@ -100,7 +104,9 @@
 <script>
 import { subscribe, unsubscribe } from '@nextcloud/event-bus'
 import { NcButton, NcEmptyContent, NcLoadingIcon, NcModal, NcTextField } from '@nextcloud/vue'
+import { useElementSize } from '@vueuse/core'
 import { mapActions, mapState } from 'pinia'
+import { ref, watch } from 'vue'
 import { Container, Draggable } from 'vue3-smooth-dnd'
 import CheckIcon from 'vue-material-design-icons/Check.vue'
 import CardSidebar from '../card/CardSidebar.vue'
@@ -146,6 +152,15 @@ export default {
 			type: Number,
 			default: null,
 		},
+	},
+
+	setup() {
+		// the filter becomes a bar of facet buttons where the German labels and saved filters fit in one row
+		const wrapper = ref(null)
+		const { width } = useElementSize(wrapper)
+		const boardStore = useBoardStore()
+		watch(width, (value) => boardStore.setFilterBarFits(value >= 768), { immediate: true })
+		return { wrapper }
 	},
 
 	data() {

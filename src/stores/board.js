@@ -54,6 +54,17 @@ export function emptyFilter(boardId = null) {
  * @param {number} boardId board to remember the choices for
  * @param {{tagMatch: string, userMatch: string}} modes the any/all choices
  */
+/**
+ * @return {boolean} whether the user left the filter bar open
+ */
+function readFilterBarOpen() {
+	try {
+		return localStorage.getItem('deck.filterBarOpen') === 'true'
+	} catch {
+		return false
+	}
+}
+
 export function rememberMatchModes(boardId, { tagMatch, userMatch }) {
 	try {
 		localStorage.setItem(`deck.filterMatch.${boardId}`, JSON.stringify({ tagMatch, userMatch }))
@@ -119,6 +130,12 @@ export const useBoardStore = defineStore('board', {
 		viewModeByBoard: {},
 		assignableUsers: [],
 		filter: emptyFilter(),
+		// whether the board is wide enough to show the filter as a bar of facet buttons
+		filterBarFits: false,
+		// whether the filter bar is shown without an active filter; it always shows with one
+		filterBarOpen: readFilterBarOpen(),
+		// keeps the bar after its last filter is removed, until it is hidden or another board is opened
+		filterBarKept: false,
 		boardFilter: BOARD_FILTERS.ALL,
 		boards: loadState('deck', 'initialBoards', {}),
 	}),
@@ -244,6 +261,27 @@ export const useBoardStore = defineStore('board', {
 			Object.assign(this.filter, values)
 			this.persistCurrentFilter()
 		},
+		setFilterBarFits(fits) {
+			this.filterBarFits = fits
+		},
+		/**
+		 * Show or hide the filter bar when no filter is active, remembered for the user in this browser.
+		 *
+		 * @param {boolean} open whether to show it
+		 * @param kept
+		 */
+		keepFilterBar(kept) {
+			this.filterBarKept = kept
+		},
+		setFilterBarOpen(open) {
+			this.filterBarOpen = open
+			this.filterBarKept = open
+			try {
+				localStorage.setItem('deck.filterBarOpen', open ? 'true' : 'false')
+			} catch {
+				// without storage the choice lasts until the page is reloaded
+			}
+		},
 		/**
 		 * Update a per-user setting of the open board locally, e.g. after storing it through the config API.
 		 *
@@ -267,6 +305,7 @@ export const useBoardStore = defineStore('board', {
 		},
 		async loadBoardById(boardId) {
 			this.filter = restoredFilter(boardId)
+			this.filterBarKept = false
 			this.setCurrentBoard(null)
 			const board = await apiClient.loadById(boardId)
 			// drop tags and users that are no longer on the board, they would hide every card

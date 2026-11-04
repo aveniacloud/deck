@@ -88,7 +88,23 @@
 			</p>
 			<div v-if="board" class="board-action-buttons">
 				<div class="board-action-buttons__filter">
+					<!-- on wide boards the filter is a bar of facet buttons below the header, shown by this button -->
+					<NcButton
+						v-if="filterBarFits"
+						:title="t('deck', 'Apply filter')"
+						:aria-label="t('deck', 'Apply filter')"
+						:aria-expanded="filterBarShown ? 'true' : 'false'"
+						aria-controls="deck-filter-bar"
+						class="filter-button"
+						:variant="filterActive ? 'primary' : 'tertiary'"
+						@click="toggleFilterBar">
+						<template #icon>
+							<FilterIcon v-if="filterActive" :size="20" decorative />
+							<FilterOffIcon v-else :size="20" decorative />
+						</template>
+					</NcButton>
 					<NcPopover
+						v-else
 						placement="bottom-end"
 						noFocusTrap
 						:aria-label="t('deck', 'Filter cards')"
@@ -102,9 +118,9 @@
 								:title="t('deck', 'Apply filter')"
 								:aria-label="t('deck', 'Apply filter')"
 								class="filter-button"
-								:variant="isFilterActive ? 'primary' : 'tertiary'">
+								:variant="filterActive ? 'primary' : 'tertiary'">
 								<template #icon>
-									<FilterIcon v-if="isFilterActive" :size="20" decorative />
+									<FilterIcon v-if="filterActive" :size="20" decorative />
 									<FilterOffIcon v-else :size="20" decorative />
 								</template>
 							</NcButton>
@@ -113,94 +129,49 @@
 						<template #default>
 							<div ref="filterContent" class="filter">
 								<template v-if="filterView === null">
-									<template v-if="savedFilters.length > 0">
-										<div class="filter--heading">
-											<h3>{{ t('deck', 'Saved filters') }}</h3>
-										</div>
-										<div v-for="({ saved, summary, active }, index) in savedFilterRows" :key="saved.name" class="filter--saved">
-											<button
-												type="button"
-												class="filter--saved-apply"
-												:aria-pressed="active ? 'true' : 'false'"
-												:title="summary ? `${saved.name}\n${summary}` : saved.name"
-												@click="applySavedFilter(saved)">
-												<CheckIcon v-if="active" class="filter--saved-icon" :size="20" />
-												<FilterIcon v-else class="filter--saved-icon" :size="20" />
-												<span class="filter--saved-text">
-													<span class="filter--saved-name">{{ saved.name }}</span>
-													<span v-if="summary" class="filter--saved-summary">{{ summary }}</span>
-												</span>
-											</button>
-											<NcButton
-												variant="tertiary"
-												size="small"
-												:aria-label="t('deck', 'Delete saved filter {name}', { name: saved.name })"
-												:title="t('deck', 'Delete saved filter')"
-												@click="deleteSavedFilter(index)">
-												<template #icon>
-													<TrashIcon :size="18" />
-												</template>
-											</NcButton>
-										</div>
-									</template>
-
-									<ul class="filter--facets">
-										<li v-for="facet in facets" :key="facet.id">
-											<button
-												type="button"
-												class="filter--facet"
-												:data-cy-facet="facet.id"
-												@click="openFacet(facet.id)">
-												<component :is="facet.icon" class="filter--facet-icon" :size="20" />
-												<span class="filter--facet-text">
-													<span>{{ facet.label }}</span>
-													<span v-if="facet.value" class="filter--facet-value">{{ facet.value }}</span>
-												</span>
-												<ChevronRightIcon class="filter--facet-icon" :size="20" />
-											</button>
-										</li>
-									</ul>
-
-									<form v-if="isSavingFilter" class="filter--save" @submit.prevent="saveFilter">
-										<NcTextField
-											ref="savedFilterName"
-											v-model="savedFilterName"
-											:label="t('deck', 'Name of the filter')"
-											:maxlength="100" />
-										<p v-if="replacedSavedFilter" class="filter--save-hint">
-											{{ t('deck', 'Replaces the saved filter "{name}".', { name: replacedSavedFilter.name }) }}
-										</p>
-										<p v-if="filter.due === 'calendarWeek'" class="filter--save-hint">
-											{{ t('deck', 'The saved filter always shows the current week.') }}
-										</p>
-										<p v-else-if="filter.due === 'calendarMonth'" class="filter--save-hint">
-											{{ t('deck', 'The saved filter always shows the current month.') }}
-										</p>
-										<div class="filter--save-actions">
-											<NcButton variant="tertiary" @click="cancelSaveFilter">
-												{{ t('deck', 'Cancel') }}
-											</NcButton>
-											<NcButton type="submit" variant="primary" :disabled="savedFilterName.trim() === ''">
-												{{ replacedSavedFilter ? t('deck', 'Replace') : t('deck', 'Save') }}
-											</NcButton>
-										</div>
-									</form>
-									<NcButton
-										v-else
-										ref="saveFilterButton"
-										:disabled="!isFilterActive"
-										:title="isFilterActive ? undefined : t('deck', 'Choose a filter first to save it')"
-										:wide="true"
-										@click="startSavingFilter">
-										{{ t('deck', 'Save filter…') }}
-									</NcButton>
-									<NcButton
-										v-if="!isSavingFilter"
-										:disabled="!isFilterActive"
-										:wide="true"
-										@click="clearFilterFromPopover">
-										{{ t('deck', 'Clear filter') }}
-									</NcButton>
+									<SavedFilters
+										v-if="savedFilters.length > 0"
+										section="list"
+										:board="board"
+										class="filter--group"
+										@removed="onSavedFilterRemoved" />
+									<div class="filter--group">
+										<h3 v-if="savedFilters.length > 0" class="filter--group-heading">
+											{{ t('deck', 'Filter by') }}
+										</h3>
+										<ul class="filter--facets">
+											<li v-for="facet in facets" :key="facet.id">
+												<button
+													type="button"
+													class="filter--facet"
+													:data-cy-facet="facet.id"
+													:aria-label="facet.value ? `${facet.label}: ${facet.value}` : facet.label"
+													:title="facet.value || null"
+													@click="openFacet(facet.id)">
+													<component :is="facet.icon" class="filter--facet-icon" :size="20" />
+													<span class="filter--facet-text">
+														<span>{{ facet.label }}</span>
+														<span v-if="facet.value" class="filter--facet-value">{{ facet.value }}</span>
+													</span>
+													<ChevronRightIcon class="filter--facet-icon" :size="20" />
+												</button>
+											</li>
+										</ul>
+									</div>
+									<div class="filter--group">
+										<SavedFilters
+											section="save"
+											:board="board"
+											@saving="isSavingFilter = $event"
+											@saved="(index) => focusInFilter('.filter--saved-apply', index)" />
+										<NcButton
+											v-if="!isSavingFilter"
+											:disabled="!filterActive"
+											:wide="true"
+											@click="clearFilterFromPopover">
+											{{ t('deck', 'Clear filter') }}
+										</NcButton>
+									</div>
 								</template>
 								<template v-else>
 									<NcButton
@@ -214,318 +185,12 @@
 										</template>
 										{{ t('deck', 'Back to filters') }}
 									</NcButton>
-									<div class="filter--facet-view">
-										<template v-if="filterView === 'tags'">
-											<div class="filter--heading">
-												<h3>{{ t('deck', 'Tags') }}</h3>
-												<div
-													v-if="filter.tags.length > 1"
-													class="filter--match"
-													role="radiogroup"
-													:aria-label="t('deck', 'Show cards with any or all of the selected tags')">
-													<NcCheckboxRadioSwitch
-														v-for="mode in ['any', 'all']"
-														:key="mode"
-														:modelValue="filter.tagMatch"
-														type="radio"
-														name="filter-tagMatch"
-														:value="mode"
-														:buttonVariant="true"
-														buttonVariantGrouped="horizontal"
-														:data-cy-match="`tags-${mode}`"
-														@update:modelValue="setMatchMode('tagMatch', mode)">
-														{{ mode === 'any' ? t('deck', 'Any') : t('deck', 'All') }}
-													</NcCheckboxRadioSwitch>
-												</div>
-											</div>
-											<div
-												v-for="label in labelsSorted"
-												:key="label.id"
-												class="filter--item filter--item-excludable"
-												:class="{ 'filter--item-excluded': filter.excludedTags.includes(label.id) }">
-												<input
-													:id="label.id"
-													v-model="filter.tags"
-													type="checkbox"
-													class="checkbox"
-													:value="label.id"
-													@change="setFilter">
-												<label :for="label.id"><span class="label" :style="labelStyle(label)">{{ label.title }}</span></label>
-												<NcButton
-													class="filter--hide"
-													variant="tertiary"
-													size="small"
-													:pressed="filter.excludedTags.includes(label.id)"
-													:aria-label="t('deck', 'Hide cards with tag {tag}', { tag: label.title })"
-													:title="t('deck', 'Hide cards with this tag')"
-													@update:pressed="toggleExcluded('excludedTags', 'tags', label.id)">
-													<template #icon>
-														<MinusCircleIcon v-if="filter.excludedTags.includes(label.id)" :size="18" />
-														<MinusCircleOutlineIcon v-else :size="18" />
-													</template>
-												</NcButton>
-											</div>
-										</template>
-										<template v-else-if="filterView === 'users'">
-											<div class="filter--heading">
-												<h3>{{ t('deck', 'Assigned to') }}</h3>
-												<div
-													v-if="filter.users.length > 1"
-													class="filter--match"
-													role="radiogroup"
-													:aria-label="t('deck', 'Show cards assigned to any or all of the selected users')">
-													<NcCheckboxRadioSwitch
-														v-for="mode in ['any', 'all']"
-														:key="mode"
-														:modelValue="filter.userMatch"
-														type="radio"
-														name="filter-userMatch"
-														:value="mode"
-														:buttonVariant="true"
-														buttonVariantGrouped="horizontal"
-														:data-cy-match="`users-${mode}`"
-														@update:modelValue="setMatchMode('userMatch', mode)">
-														{{ mode === 'any' ? t('deck', 'Any') : t('deck', 'All') }}
-													</NcCheckboxRadioSwitch>
-												</div>
-											</div>
-											<div class="filter--item">
-												<input
-													id="unassigned"
-													v-model="filter.unassigned"
-													type="checkbox"
-													class="checkbox"
-													value="unassigned"
-													@change="setFilter"
-													@click="beforeSetFilter">
-												<label for="unassigned">{{ t('deck', 'Unassigned') }}</label>
-											</div>
-											<div
-												v-for="user in usersSorted"
-												:key="user.uid"
-												class="filter--item filter--item-excludable"
-												:class="{ 'filter--item-excluded': filter.excludedUsers.includes(user.uid) }">
-												<input
-													:id="user.uid"
-													v-model="filter.users"
-													type="checkbox"
-													class="checkbox"
-													:value="user.uid"
-													@change="setFilter">
-												<label :for="user.uid"><NcAvatar
-													:user="user.uid"
-													:size="24"
-													:disableMenu="true"
-													:hideStatus="true" /> {{ user.uid === currentUserId ? t('deck', '{name} (you)', { name: user.displayname }) : user.displayname }}</label>
-												<NcButton
-													class="filter--hide"
-													variant="tertiary"
-													size="small"
-													:pressed="filter.excludedUsers.includes(user.uid)"
-													:aria-label="t('deck', 'Hide cards assigned to {user}', { user: user.displayname })"
-													:title="t('deck', 'Hide cards assigned to this user')"
-													@update:pressed="toggleExcluded('excludedUsers', 'users', user.uid)">
-													<template #icon>
-														<MinusCircleIcon v-if="filter.excludedUsers.includes(user.uid)" :size="18" />
-														<MinusCircleOutlineIcon v-else :size="18" />
-													</template>
-												</NcButton>
-											</div>
-										</template>
-										<template v-else-if="filterView === 'status'">
-											<div class="filter--heading">
-												<h3>{{ t('deck', 'Status') }}</h3>
-											</div>
-											<div class="filter--item">
-												<input
-													id="filter-option-both"
-													v-model="filter.completed"
-													type="radio"
-													name="filter-status"
-													class="radio"
-													value="both"
-													@change="setFilter"
-													@click="beforeSetFilter">
-												<label for="filter-option-both">{{ t('deck', 'Open and completed') }}</label>
-											</div>
-											<div class="filter--item">
-												<input
-													id="filter-option-open"
-													v-model="filter.completed"
-													type="radio"
-													name="filter-status"
-													class="radio"
-													value="open"
-													@change="setFilter"
-													@click="beforeSetFilter">
-												<label for="filter-option-open">{{ t('deck', 'Open') }}</label>
-											</div>
-
-											<div class="filter--item">
-												<input
-													id="filter-option-completed"
-													v-model="filter.completed"
-													type="radio"
-													name="filter-status"
-													class="radio"
-													value="completed"
-													@change="setFilter"
-													@click="beforeSetFilter">
-												<label for="filter-option-completed">{{ t('deck', 'Completed') }}</label>
-											</div>
-										</template>
-										<template v-else>
-											<div class="filter--heading">
-												<h3>{{ t('deck', 'Due date') }}</h3>
-											</div>
-											<div class="filter--item">
-												<input
-													id="overdue"
-													v-model="filter.due"
-													type="radio"
-													name="filter-due"
-													class="radio"
-													value="overdue"
-													@change="setFilter"
-													@click="beforeSetFilter">
-												<label for="overdue">{{ t('deck', 'Overdue') }}</label>
-											</div>
-
-											<div class="filter--item">
-												<input
-													id="dueToday"
-													v-model="filter.due"
-													type="radio"
-													name="filter-due"
-													class="radio"
-													value="dueToday"
-													aria-describedby="filter-due-next-hint"
-													@change="setFilter"
-													@click="beforeSetFilter">
-												<label for="dueToday">{{ t('deck', 'Next 24 hours') }}</label>
-											</div>
-
-											<div class="filter--item">
-												<input
-													id="dueWeek"
-													v-model="filter.due"
-													type="radio"
-													name="filter-due"
-													class="radio"
-													value="dueWeek"
-													aria-describedby="filter-due-next-hint"
-													@change="setFilter"
-													@click="beforeSetFilter">
-												<label for="dueWeek">{{ t('deck', 'Next 7 days') }}</label>
-											</div>
-
-											<div class="filter--item">
-												<input
-													id="dueMonth"
-													v-model="filter.due"
-													type="radio"
-													name="filter-due"
-													class="radio"
-													value="dueMonth"
-													aria-describedby="filter-due-next-hint"
-													@change="setFilter"
-													@click="beforeSetFilter">
-												<label for="dueMonth">{{ t('deck', 'Next 30 days') }}</label>
-											</div>
-
-											<p id="filter-due-next-hint" class="filter--hint">
-												{{ t('deck', 'Counted from now, without overdue cards') }}
-											</p>
-
-											<div class="filter--item">
-												<input
-													id="dueCalendarWeek"
-													:checked="filter.due === 'calendarWeek'"
-													type="radio"
-													name="filter-due"
-													class="radio"
-													value="calendarWeek"
-													@click="togglePeriod('calendarWeek')">
-												<label for="dueCalendarWeek">{{ t('deck', 'Calendar week') }}</label>
-											</div>
-											<!-- the period controls belong to the option right above them -->
-											<div v-if="filter.due === 'calendarWeek'" class="filter--due-options">
-												<DueDateRangeFilter
-													mode="calendarWeek"
-													:from="filter.dueFrom"
-													:to="filter.dueTo"
-													@update="updateDueRange" />
-												<div class="filter--item">
-													<input
-														id="due-include-overdue"
-														v-model="filter.dueIncludeOverdue"
-														type="checkbox"
-														class="checkbox"
-														@change="setFilter">
-													<label for="due-include-overdue">{{ t('deck', 'Also show overdue open cards') }}</label>
-												</div>
-											</div>
-
-											<div class="filter--item">
-												<input
-													id="duePeriod"
-													:checked="isDuePeriod"
-													type="radio"
-													name="filter-due"
-													class="radio"
-													value="period"
-													@click="togglePeriod('calendarMonth')">
-												<label for="duePeriod">{{ t('deck', 'Month or date range') }}</label>
-											</div>
-											<div v-if="isDuePeriod" class="filter--due-options">
-												<div
-													class="filter--match"
-													role="radiogroup"
-													:aria-label="t('deck', 'Kind of period')">
-													<NcCheckboxRadioSwitch
-														v-for="option in dueRangeOptions"
-														:key="option.value"
-														:modelValue="filter.due"
-														type="radio"
-														name="filter-due-period"
-														:value="option.value"
-														:buttonVariant="true"
-														buttonVariantGrouped="horizontal"
-														:data-cy-period="option.value"
-														@update:modelValue="choosePeriod(option.value)">
-														{{ option.label }}
-													</NcCheckboxRadioSwitch>
-												</div>
-												<DueDateRangeFilter
-													:mode="filter.due"
-													:from="filter.dueFrom"
-													:to="filter.dueTo"
-													@update="updateDueRange" />
-												<div class="filter--item">
-													<input
-														id="due-include-overdue"
-														v-model="filter.dueIncludeOverdue"
-														type="checkbox"
-														class="checkbox"
-														@change="setFilter">
-													<label for="due-include-overdue">{{ t('deck', 'Also show overdue open cards') }}</label>
-												</div>
-											</div>
-
-											<div class="filter--item">
-												<input
-													id="noDue"
-													v-model="filter.due"
-													type="radio"
-													name="filter-due"
-													class="radio"
-													value="noDue"
-													@change="setFilter"
-													@click="beforeSetFilter">
-												<label for="noDue">{{ t('deck', 'No due date') }}</label>
-											</div>
-										</template>
-									</div>
+									<FilterFacet
+										ref="facet"
+										class="filter--facet-view"
+										:board="board"
+										:facet="filterView"
+										@chosen="closeFacet" />
 								</template>
 							</div>
 						</template>
@@ -596,9 +261,8 @@
 
 <script>
 import { getCurrentUser } from '@nextcloud/auth'
-import { showError, showUndo } from '@nextcloud/dialogs'
 import { subscribe, unsubscribe } from '@nextcloud/event-bus'
-import { NcActionButton, NcActions, NcActionSeparator, NcAvatar, NcButton, NcCheckboxRadioSwitch, NcModal, NcPopover, NcTextField } from '@nextcloud/vue'
+import { NcActionButton, NcActions, NcActionSeparator, NcButton, NcModal, NcPopover, NcTextField } from '@nextcloud/vue'
 import { vOnClickOutside } from '@vueuse/components'
 import { mapActions, mapState, mapWritableState } from 'pinia'
 import AccountMultipleIcon from 'vue-material-design-icons/AccountMultipleOutline.vue'
@@ -608,26 +272,21 @@ import ArrowExpandVerticalIcon from 'vue-material-design-icons/ArrowExpandVertic
 import ArrowLeftIcon from 'vue-material-design-icons/ArrowLeft.vue'
 import CalendarIcon from 'vue-material-design-icons/CalendarOutline.vue'
 import ChartGanttIcon from 'vue-material-design-icons/ChartGantt.vue'
-import CheckIcon from 'vue-material-design-icons/Check.vue'
 import CheckCircleIcon from 'vue-material-design-icons/CheckCircleOutline.vue'
 import ChevronRightIcon from 'vue-material-design-icons/ChevronRight.vue'
 import FilterOffIcon from 'vue-material-design-icons/FilterOffOutline.vue'
 import FilterIcon from 'vue-material-design-icons/FilterOutline.vue'
 import ImageIcon from 'vue-material-design-icons/ImageMultipleOutline.vue'
-import MinusCircleIcon from 'vue-material-design-icons/MinusCircle.vue'
-import MinusCircleOutlineIcon from 'vue-material-design-icons/MinusCircleOutline.vue'
 import TableColumnPlusAfter from 'vue-material-design-icons/TableColumnPlusAfter.vue'
 import TagIcon from 'vue-material-design-icons/TagOutline.vue'
-import TrashIcon from 'vue-material-design-icons/TrashCanOutline.vue'
 import ViewColumnIcon from 'vue-material-design-icons/ViewColumn.vue'
 import CreateNewCardCustomPicker from '../views/CreateNewCardCustomPicker.vue'
-import DueDateRangeFilter from './DueDateRangeFilter.vue'
+import FilterFacet from './filter/FilterFacet.vue'
+import SavedFilters from './filter/SavedFilters.vue'
 import SessionList from './SessionList.vue'
-import { describeFilter, filterParts, filtersEqual } from '../helpers/boardFilter.js'
-import { periodAround } from '../helpers/periods.js'
-import labelStyle from '../mixins/labelStyle.js'
+import { facetValue, filterParts, isFilterActive } from '../helpers/boardFilter.js'
 import { isNotifyPushEnabled } from '../sessions.js'
-import { emptyFilter, rememberMatchModes, useBoardStore } from '../stores/board.js'
+import { emptyFilter, useBoardStore } from '../stores/board.js'
 import { useCardStore } from '../stores/card.js'
 import { useSettingsStore } from '../stores/settings.js'
 import { useStackStore } from '../stores/stack.js'
@@ -640,35 +299,29 @@ export default {
 		NcActions,
 		NcActionButton,
 		NcButton,
-		NcCheckboxRadioSwitch,
 		NcPopover,
 		NcTextField,
-		NcAvatar,
 		ArchiveIcon,
 		ImageIcon,
 		FilterIcon,
 		FilterOffIcon,
 		ArrowLeftIcon,
 		ChevronRightIcon,
-		MinusCircleIcon,
-		MinusCircleOutlineIcon,
 		ArrowCollapseVerticalIcon,
 		ArrowExpandVerticalIcon,
 		ViewColumnIcon,
 		ChartGanttIcon,
 		NcActionSeparator,
 		TableColumnPlusAfter,
-		TrashIcon,
-		CheckIcon,
 		SessionList,
-		DueDateRangeFilter,
+		FilterFacet,
+		SavedFilters,
 	},
 
 	directives: {
 		vOnClickOutside,
 	},
 
-	mixins: [labelStyle],
 	props: {
 		board: {
 			type: Object,
@@ -704,25 +357,20 @@ export default {
 			newStackTitle: '',
 			stack: '',
 			isAddStackVisible: false,
-			// a copy of the store's filter, which may have been restored for this board
-			filter: JSON.parse(JSON.stringify(useBoardStore().filter)),
 			showAddCardModal: false,
 			isSavingFilter: false,
 			// null for the overview, otherwise the facet shown: 'tags', 'users', 'status' or 'due'
 			filterView: null,
-			// the store filter as this popover last wrote it, to tell its own changes from others'
-			lastWrittenFilter: null,
 			filterAnnouncement: '',
 			announceTimeout: null,
 			skipAnnouncement: false,
-			savedFilterName: '',
 			defaultPageTitle: false,
 			isNotifyPushEnabled: isNotifyPushEnabled(),
 		}
 	},
 
 	computed: {
-		...mapState(useBoardStore, { storeFilter: 'filter' }),
+		...mapState(useBoardStore, ['filter', 'filterBarFits', 'filterBarOpen', 'filterBarKept']),
 		...mapState(useBoardStore, [
 			'canManage',
 			'viewMode',
@@ -756,14 +404,6 @@ export default {
 			return this.board?.settings?.savedFilters ?? []
 		},
 
-		savedFilterRows() {
-			return this.savedFilters.map((saved) => ({
-				saved,
-				summary: describeFilter(saved.filter, this.board),
-				active: filtersEqual(this.filter, saved.filter, periodAround, { anyPeriod: true }),
-			}))
-		},
-
 		visibleCardCount() {
 			return useCardStore().cardCountOnBoard(this.board.id)
 		},
@@ -775,55 +415,20 @@ export default {
 		 */
 		facets() {
 			const parts = filterParts(this.filter, this.board)
-			const value = (kinds, hiddenPrefix) => parts
-				.filter((part) => kinds.includes(part.kind) || part.id.startsWith(hiddenPrefix))
-				.map((part) => part.label)
-				.join(' · ')
 			return [
-				{ id: 'tags', label: t('deck', 'Tags'), icon: TagIcon, value: value(['tags'], 'hidden-tag-') },
-				{ id: 'users', label: t('deck', 'Assigned to'), icon: AccountMultipleIcon, value: value(['users', 'unassigned'], 'hidden-user-') },
-				{ id: 'status', label: t('deck', 'Status'), icon: CheckCircleIcon, value: value(['status'], '-') },
-				{ id: 'due', label: t('deck', 'Due date'), icon: CalendarIcon, value: value(['due'], '-') },
-			]
+				{ id: 'tags', label: t('deck', 'Tags'), icon: TagIcon },
+				{ id: 'users', label: t('deck', 'Assigned to'), icon: AccountMultipleIcon },
+				{ id: 'status', label: t('deck', 'Status'), icon: CheckCircleIcon },
+				{ id: 'due', label: t('deck', 'Due date'), icon: CalendarIcon },
+			].map((facet) => ({ ...facet, value: facetValue(parts, facet.id) }))
 		},
 
-		/**
-		 * The saved filter that saving under the typed name would replace; names ignore case.
-		 *
-		 * @return {object|undefined}
-		 */
-		replacedSavedFilter() {
-			const name = this.savedFilterName.trim().toLowerCase()
-			return name ? this.savedFilters.find((saved) => saved.name.toLowerCase() === name) : undefined
+		filterActive() {
+			return isFilterActive(this.filter)
 		},
 
-		dueRangeOptions() {
-			return [
-				{ value: 'calendarMonth', label: t('deck', 'Month') },
-				{ value: 'range', label: t('deck', 'Range') },
-			]
-		},
-
-		isDuePeriod() {
-			// the calendar week has an option of its own, being what most people look for
-			return ['calendarMonth', 'range'].includes(this.filter.due)
-		},
-
-		isFilterActive() {
-			return this.filter.tags.length !== 0 || this.filter.users.length !== 0 || this.filter.excludedTags.length !== 0 || this.filter.excludedUsers.length !== 0 || this.filter.due !== '' || this.filter.completed !== 'both'
-		},
-
-		labelsSorted() {
-			return [...this.board.labels].sort((a, b) => (a.title < b.title) ? -1 : 1)
-		},
-
-		currentUserId() {
-			return getCurrentUser()?.uid
-		},
-
-		usersSorted() {
-			// filtering for one's own cards is the most common user filter, so offer it first
-			return [...this.board.users].sort((a, b) => (b.uid === this.currentUserId) - (a.uid === this.currentUserId))
+		filterBarShown() {
+			return this.filterBarFits && (this.filterBarOpen || this.filterBarKept || this.filterActive)
 		},
 
 		presentUsers() {
@@ -844,18 +449,11 @@ export default {
 			this.skipAnnouncement = true
 			this.isSavingFilter = false
 			this.filterView = null
-			this.filter = JSON.parse(JSON.stringify(this.storeFilter))
 		},
 
-		storeFilter: {
+		filter: {
 			deep: true,
-			handler(storeFilter) {
-				// the filter can also change outside the popover (filter chips, clicking a tag on a card).
-				// Adopt only those changes: the popover's own writes can lag behind its local state.
-				const current = JSON.stringify(storeFilter)
-				if (current !== this.lastWrittenFilter && current !== JSON.stringify(this.filter)) {
-					this.filter = JSON.parse(current)
-				}
+			handler() {
 				if (this.skipAnnouncement) {
 					this.skipAnnouncement = false
 					return
@@ -895,7 +493,7 @@ export default {
 	},
 
 	methods: {
-		...mapActions(useBoardStore, { setViewMode: 'setViewMode', toggleShowArchived: 'toggleShowArchived', storeSetFilter: 'setFilterInStore', setCurrentBoardSetting: 'setCurrentBoardSetting' }),
+		...mapActions(useBoardStore, ['setViewMode', 'toggleShowArchived', 'setFilterValues', 'setFilterBarOpen']),
 		...mapActions(useStackStore, ['createStack']),
 		...mapActions(useSettingsStore, {
 			setSearchQuery: 'setSearchQuery',
@@ -903,84 +501,7 @@ export default {
 			setNavShown: 'toggleNav',
 			toggleCompact: 'toggleCompactMode',
 			toggleCardCover: 'toggleShowCardCover',
-			setConfig: 'setConfig',
 		}),
-
-		beforeSetFilter(e) {
-			if (this.filter.due === e.target.value) {
-				this.filter.due = ''
-				this.setFilterInStore({ ...this.filter })
-			}
-			if (e.target.value === 'unassigned') {
-				this.filter.users = []
-				this.setFilterInStore({ ...this.filter })
-			}
-			this.setFilterInStore({ ...this.filter })
-		},
-
-		setFilter() {
-			if (this.filter.users.length > 0) {
-				this.filter.unassigned = false
-			}
-			// selecting an entry takes it out of the excluded ones
-			this.filter.excludedTags = this.filter.excludedTags.filter((id) => !this.filter.tags.includes(id))
-			this.filter.excludedUsers = this.filter.excludedUsers.filter((uid) => !this.filter.users.includes(uid))
-			this.$nextTick(() => this.setFilterInStore({ ...this.filter }))
-		},
-
-		/**
-		 * Switch between calendar week, calendar month and custom range. Weeks and months start at the
-		 * current one; a custom range keeps the dates shown before.
-		 *
-		 * @param {string} mode 'calendarWeek', 'calendarMonth' or 'range'
-		 */
-		choosePeriod(mode) {
-			this.filter.due = mode
-			if (mode !== 'range') {
-				const { from, to } = periodAround(mode)
-				this.filter.dueFrom = from
-				this.filter.dueTo = to
-			}
-			this.setFilterInStore({ ...this.filter })
-		},
-
-		/**
-		 * Like the other due date options, choosing the calendar week or "Month or date range"
-		 * again turns it off.
-		 *
-		 * @param {string} mode 'calendarWeek', or 'calendarMonth' as the start of "Month or date range"
-		 */
-		togglePeriod(mode) {
-			const active = mode === 'calendarWeek' ? this.filter.due === 'calendarWeek' : this.isDuePeriod
-			if (active) {
-				this.filter.due = ''
-				this.setFilterInStore({ ...this.filter })
-			} else {
-				this.choosePeriod(mode)
-			}
-		},
-
-		async storeSavedFilters(savedFilters) {
-			const previous = this.savedFilters
-			this.setCurrentBoardSetting('savedFilters', savedFilters)
-			try {
-				await this.setConfig({ [`board:${this.board.id}:savedFilters`]: savedFilters })
-			} catch (e) {
-				this.setCurrentBoardSetting('savedFilters', previous)
-				showError(t('deck', 'The saved filters could not be updated'))
-				throw e
-			}
-		},
-
-		/**
-		 * Write the popover's filter to the store, remembering the result.
-		 *
-		 * @param {object} filter filter values to write
-		 */
-		setFilterInStore(filter) {
-			this.lastWrittenFilter = JSON.stringify({ ...this.storeFilter, ...filter })
-			this.storeSetFilter(filter)
-		},
 
 		/**
 		 * Move focus to the index-th match of a selector inside the filter popover, after the next render.
@@ -996,7 +517,7 @@ export default {
 		},
 
 		focusFirstFilterControl() {
-			this.focusInFilter('.filter--saved-apply, .filter--facet, .filter--facet-view input:not([disabled]), .filter--facet-view button:not([disabled])')
+			this.focusInFilter('.filter--saved-apply, .filter--facet')
 		},
 
 		/**
@@ -1006,16 +527,12 @@ export default {
 		 */
 		openFacet(facet) {
 			this.filterView = facet
-			this.$nextTick(() => {
-				// start at the chosen option: on an unchecked radio, an arrow key would change the filter
-				const view = this.$refs.filterContent?.querySelector('.filter--facet-view')
-				const target = view?.querySelector('.filter--item input[type="radio"]:checked')
-					?? view?.querySelector('.filter--item input:not([type="radio"]):not([disabled])')
-					?? view?.querySelector('input:not([disabled]), button:not([disabled])')
-				target?.focus()
-			})
+			this.$nextTick(() => this.$refs.facet?.focusStart())
 		},
 
+		/**
+		 * Back to the overview, also after a choice that completes a facet, like a status.
+		 */
 		closeFacet() {
 			const facet = this.filterView
 			this.filterView = null
@@ -1039,85 +556,33 @@ export default {
 			}
 		},
 
-		startSavingFilter() {
-			this.isSavingFilter = true
-			this.$nextTick(() => this.$refs.savedFilterName?.focus())
-		},
-
 		clearFilterFromPopover() {
 			this.clearFilter()
 			// the clear button disables itself, so keep focus in the popover
 			this.focusFirstFilterControl()
 		},
 
-		async saveFilter() {
-			const name = this.savedFilterName.trim()
-			const filter = { ...this.filter }
-			// weeks and months are saved as "the current one", custom ranges with their dates
-			if (filter.due === 'calendarWeek' || filter.due === 'calendarMonth') {
-				filter.dueFrom = ''
-				filter.dueTo = ''
-			}
-			const others = this.savedFilters.filter((saved) => saved.name.toLowerCase() !== name.toLowerCase())
-			await this.storeSavedFilters([...others, { name, filter }])
-			this.isSavingFilter = false
-			this.savedFilterName = ''
-			// focus the new entry, which also scrolls it into view as confirmation
-			this.focusInFilter('.filter--saved-apply', others.length)
-		},
-
-		cancelSaveFilter() {
-			this.isSavingFilter = false
-			this.savedFilterName = ''
-			this.$nextTick(() => this.$refs.saveFilterButton?.$el.focus())
-		},
-
-		applySavedFilter(saved) {
-			this.clearFilter()
-			Object.assign(this.filter, saved.filter)
-			if (this.filter.due === 'calendarWeek' || this.filter.due === 'calendarMonth') {
-				const { from, to } = periodAround(this.filter.due)
-				this.filter.dueFrom = from
-				this.filter.dueTo = to
-			}
-			this.setFilterInStore({ ...this.filter })
-		},
-
-		deleteSavedFilter(index) {
-			const before = this.savedFilters
-			const remaining = before.filter((saved, i) => i !== index)
-			this.storeSavedFilters(remaining)
-			showUndo(t('deck', 'Saved filter "{name}" deleted', { name: before[index].name }), () => this.storeSavedFilters(before))
-			if (remaining.length > 0) {
-				this.focusInFilter('.filter--saved-apply', index)
-			} else {
+		onSavedFilterRemoved(remaining) {
+			// the list moves focus to a remaining saved filter itself
+			if (remaining === 0) {
 				this.focusFirstFilterControl()
 			}
 		},
 
-		setMatchMode(key, mode) {
-			this.filter[key] = mode
-			if (this.board) {
-				rememberMatchModes(this.board.id, this.filter)
+		/**
+		 * Show or hide the filter bar of wide boards. It cannot be hidden while a filter is active,
+		 * then the button takes the user to it instead.
+		 */
+		toggleFilterBar() {
+			if (this.filterBarShown && this.filterActive) {
+				document.querySelector('#deck-filter-bar button')?.focus()
+				return
 			}
-			this.setFilterInStore({ ...this.filter })
-		},
-
-		toggleExcluded(excludedKey, selectedKey, value) {
-			const excluded = this.filter[excludedKey]
-			if (excluded.includes(value)) {
-				this.filter[excludedKey] = excluded.filter((v) => v !== value)
-			} else {
-				this.filter[excludedKey] = [...excluded, value]
-				this.filter[selectedKey] = this.filter[selectedKey].filter((v) => v !== value)
+			const open = !this.filterBarShown
+			this.setFilterBarOpen(open)
+			if (open) {
+				this.$nextTick(() => document.querySelector('#deck-filter-bar button')?.focus())
 			}
-			this.setFilterInStore({ ...this.filter })
-		},
-
-		updateDueRange({ from, to }) {
-			this.filter.dueFrom = from
-			this.filter.dueTo = to
-			this.setFilterInStore({ ...this.filter })
 		},
 
 		clearSearchQuery() {
@@ -1165,9 +630,7 @@ export default {
 		},
 
 		clearFilter() {
-			const filterReset = emptyFilter(this.board?.id ?? null)
-			this.setFilterInStore({ ...filterReset })
-			this.filter = filterReset
+			this.setFilterValues(emptyFilter(this.board?.id ?? null))
 		},
 
 		clickShowAddCardModel() {
@@ -1199,19 +662,31 @@ export default {
 		},
 
 		triggerOpenFilters() {
-			this.$refs.filterPopover.$el.click()
+			if (this.filterBarFits) {
+				this.toggleFilterBar()
+			} else {
+				this.$refs.filterPopover?.$el.click()
+			}
 		},
 
 		triggerClearFilter() {
 			this.clearFilter()
 		},
 
+		/**
+		 * Add or remove the current user in the user filter, keeping the rest of the filter: with
+		 * filters kept across visits, clearing everything would be a surprise.
+		 */
 		triggerFilterByMe() {
-			if (this.isFilterActive) {
-				this.clearFilter()
+			const uid = getCurrentUser().uid
+			if (this.filter.users.includes(uid)) {
+				this.setFilterValues({ users: this.filter.users.filter((user) => user !== uid) })
 			} else {
-				this.filter.users = [getCurrentUser().uid]
-				this.setFilter()
+				this.setFilterValues({
+					users: [...this.filter.users, uid],
+					unassigned: false,
+					excludedUsers: this.filter.excludedUsers.filter((user) => user !== uid),
+				})
 			}
 		},
 	},
@@ -1315,23 +790,9 @@ export default {
 		}
 	}
 
-	.filter--item {
-		input + label {
-			display: block;
-			padding: var(--default-grid-baseline) 0;
-			.avatardiv {
-				vertical-align: middle;
-				margin-bottom: 2px;
-				margin-inline-end: 3px;
-			}
-			.label {
-				padding: 5px;
-				border-radius: 3px;
-			}
-		}
-	}
-
 	.filter {
+		display: flex;
+		flex-direction: column;
 		width: 280px;
 		max-height: calc(100vh - 150px);
 		position: relative;
@@ -1339,29 +800,28 @@ export default {
 		padding: 8px;
 	}
 
-	.filter--item-excludable {
+	// saved filters, the facets and the actions on the filter as a whole
+	.filter--group {
 		display: flex;
-		align-items: center;
+		flex-direction: column;
+		gap: var(--default-grid-baseline);
 
-		input + label {
-			flex: 1;
-			min-width: 0;
+		& + & {
+			margin-top: calc(2 * var(--default-grid-baseline));
+			padding-top: calc(2 * var(--default-grid-baseline));
+			border-top: 1px solid var(--color-border);
 		}
 	}
 
-	.filter--item-excluded input + label {
-		text-decoration: line-through;
-		opacity: .7;
-	}
-
-	.filter--saved {
-		display: flex;
-		align-items: center;
-		gap: var(--default-grid-baseline);
+	.filter--group-heading {
+		margin: 0;
+		font-size: var(--default-font-size);
+		font-weight: bold;
+		line-height: var(--default-clickable-area);
 	}
 
 	.filter--facets {
-		margin: 0 0 var(--default-grid-baseline);
+		margin: 0;
 		padding: 0;
 		list-style: none;
 	}
@@ -1416,156 +876,6 @@ export default {
 
 	.filter--facet-view {
 		margin-top: var(--default-grid-baseline);
-	}
-
-	button.filter--saved-apply {
-		display: flex;
-		flex: 1;
-		align-items: flex-start;
-		gap: calc(2 * var(--default-grid-baseline));
-		min-width: 0;
-		min-height: var(--default-clickable-area);
-		margin: 0;
-		padding: var(--default-grid-baseline) calc(2 * var(--default-grid-baseline));
-		border: none;
-		border-radius: var(--border-radius-element, var(--border-radius-large));
-		background: transparent;
-		color: var(--color-main-text);
-		font-weight: normal;
-		text-align: start;
-		cursor: pointer;
-
-		&:hover {
-			background: var(--color-background-hover);
-		}
-
-		&:focus-visible {
-			outline: 2px solid var(--color-main-text);
-			outline-offset: -2px;
-		}
-
-		&[aria-pressed='true'] {
-			background: var(--color-primary-element-light);
-			color: var(--color-primary-element-light-text);
-
-			.filter--saved-summary {
-				color: inherit;
-			}
-		}
-	}
-
-	.filter--saved-icon {
-		flex-shrink: 0;
-		margin-top: 2px;
-	}
-
-	.filter--saved-text {
-		display: flex;
-		flex-direction: column;
-		min-width: 0;
-	}
-
-	.filter--saved-name,
-	.filter--saved-summary {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.filter--saved-summary {
-		color: var(--color-text-maxcontrast);
-		font-size: var(--font-size-small, 13px);
-	}
-
-	.filter--save {
-		display: flex;
-		flex-direction: column;
-		gap: var(--default-grid-baseline);
-		margin-bottom: var(--default-grid-baseline);
-	}
-
-	.filter--save-hint {
-		margin: 0;
-		color: var(--color-text-maxcontrast);
-		font-size: var(--font-size-small, 13px);
-	}
-
-	.filter--hint {
-		margin: 0 0 var(--default-grid-baseline);
-		// in line with the option labels
-		padding-inline-start: calc(var(--default-clickable-area) - var(--default-grid-baseline));
-		color: var(--color-text-maxcontrast);
-		font-size: var(--font-size-small, 13px);
-	}
-
-	.filter--save-actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: var(--default-grid-baseline);
-	}
-
-	.filter--due-options {
-		margin-block-end: calc(2 * var(--default-grid-baseline));
-		margin-inline-start: calc(4 * var(--default-grid-baseline));
-	}
-
-	.filter--match {
-		display: flex;
-		margin-bottom: var(--default-grid-baseline);
-
-		// stretched segments would only be clickable on their text, so they keep their size
-	}
-
-	.filter--heading {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: calc(2 * var(--default-grid-baseline));
-		// room for the any/all switch, so the row keeps its height when the switch appears
-		min-height: calc(var(--default-clickable-area) + 4px);
-		margin-top: calc(3 * var(--default-grid-baseline));
-
-		&:first-child {
-			margin-top: 0;
-		}
-
-		h3 {
-			margin: 0;
-			font-size: var(--default-font-size);
-			font-weight: bold;
-			line-height: var(--default-clickable-area);
-		}
-
-		.filter--match {
-			flex: 0 0 auto;
-			margin: 0;
-
-			> * {
-				flex: none;
-			}
-		}
-	}
-
-	// hide buttons only take attention where a pointer can reveal them; touch screens keep showing them
-	@media (hover: hover) {
-		.filter--item-excludable .filter--hide {
-			transition: opacity var(--animation-quick) ease-out;
-		}
-
-		.filter--item-excludable .filter--hide:not([aria-pressed='true']) {
-			opacity: 0;
-		}
-
-		.filter--item-excludable:hover .filter--hide,
-		.filter--item-excludable:focus-within .filter--hide {
-			opacity: 1;
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.filter--item-excludable .filter--hide {
-			transition: none;
-		}
 	}
 
 	.filter-button {
