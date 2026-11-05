@@ -7,6 +7,7 @@ import axios from '@nextcloud/axios'
 import { loadState } from '@nextcloud/initial-state'
 import { generateUrl } from '@nextcloud/router'
 import { defineStore } from 'pinia'
+import { periodAround } from '../helpers/periods.js'
 import { BoardApi } from '../services/BoardApi.js'
 import { useCardStore } from './card.js'
 import { useStackStore } from './stack.js'
@@ -19,13 +20,105 @@ export const BOARD_FILTERS = {
 	SHARED: 'shared',
 }
 
+/**
+ * @param {number|null} boardId board whose remembered any/all choices to use
+ * @return {object} a board filter that shows every card. The any/all choices for tags and users
+ * are remembered per board in this browser, so they survive clearing the filter and reopening the board.
+ */
+export function emptyFilter(boardId = null) {
+	let modes = {}
+	if (boardId !== null) {
+		try {
+			modes = JSON.parse(localStorage.getItem(`deck.filterMatch.${boardId}`)) ?? {}
+		} catch {
+			modes = {}
+		}
+	}
+	return {
+		tags: [],
+		tagMatch: modes.tagMatch === 'any' ? 'any' : 'all',
+		excludedTags: [],
+		users: [],
+		userMatch: modes.userMatch === 'all' ? 'all' : 'any',
+		excludedUsers: [],
+		due: '',
+		dueFrom: '',
+		dueTo: '',
+		dueIncludeOverdue: false,
+		unassigned: false,
+		completed: 'both',
+	}
+}
+
+/**
+ * @param {number} boardId board to remember the choices for
+ * @param {{tagMatch: string, userMatch: string}} modes the any/all choices
+ */
+export function rememberMatchModes(boardId, { tagMatch, userMatch }) {
+	try {
+		localStorage.setItem(`deck.filterMatch.${boardId}`, JSON.stringify({ tagMatch, userMatch }))
+	} catch {
+		// without storage the choice only lasts until the filter is cleared
+	}
+}
+
+const PERSISTED_KEYS = ['tags', 'excludedTags', 'users', 'excludedUsers', 'unassigned', 'completed', 'due', 'dueFrom', 'dueTo', 'dueIncludeOverdue']
+
+/**
+ * The filter of a board as last used in this browser, so it survives reloading and coming back.
+ * A calendar week or month is restored as the current one, like a saved filter.
+ *
+ * @param {number} boardId board to restore the filter for
+ * @return {object} a board filter, empty if nothing was stored
+ */
+export function restoredFilter(boardId) {
+	const filter = emptyFilter(boardId)
+	let stored
+	try {
+		stored = JSON.parse(localStorage.getItem(`deck.filter.${boardId}`))
+	} catch {
+		stored = null
+	}
+	if (!stored || typeof stored !== 'object') {
+		return filter
+	}
+	for (const key of PERSISTED_KEYS) {
+		if (key in stored && typeof stored[key] === typeof filter[key] && Array.isArray(stored[key]) === Array.isArray(filter[key])) {
+			filter[key] = stored[key]
+		}
+	}
+	if (filter.due === 'calendarWeek' || filter.due === 'calendarMonth') {
+		Object.assign(filter, (({ from, to }) => ({ dueFrom: from, dueTo: to }))(periodAround(filter.due)))
+	}
+	return filter
+}
+
+/**
+ * @param {number} boardId board to remember the filter for
+ * @param {object} filter the current filter; an empty one removes what was stored
+ */
+function persistFilter(boardId, filter) {
+	const active = filter.tags.length || filter.excludedTags.length || filter.users.length || filter.excludedUsers.length
+		|| filter.unassigned || filter.completed !== 'both' || filter.due !== ''
+	try {
+		if (active) {
+			const values = Object.fromEntries(PERSISTED_KEYS.map((key) => [key, filter[key]]))
+			localStorage.setItem(`deck.filter.${boardId}`, JSON.stringify(values))
+		} else {
+			localStorage.removeItem(`deck.filter.${boardId}`)
+		}
+	} catch {
+		// without storage the filter is simply not kept
+	}
+}
+
 export const useBoardStore = defineStore('board', {
 	state: () => ({
 		currentBoard: null,
 		showArchived: false,
 		viewModeByBoard: {},
 		assignableUsers: [],
-		filter: { tags: [], users: [], due: '', unassigned: false, completed: 'both' },
+		filter: emptyFilter(),
 		boardFilter: BOARD_FILTERS.ALL,
 		boards: loadState('deck', 'initialBoards', {}),
 	}),
@@ -120,6 +213,7 @@ export const useBoardStore = defineStore('board', {
 						break
 				}
 			})
+			this.persistCurrentFilter()
 		},
 		async loadBoards() {
 			const boards = await apiClient.loadBoards()
@@ -133,6 +227,33 @@ export const useBoardStore = defineStore('board', {
 		},
 		setFilterInStore(filter) {
 			Object.assign(this.filter, filter)
+			this.persistCurrentFilter()
+		},
+		persistCurrentFilter() {
+			if (this.currentBoard) {
+				persistFilter(this.currentBoard.id, this.filter)
+			}
+		},
+		/**
+		 * Change single filter values, e.g. when an active filter chip is removed.
+		 * Pass new arrays rather than mutating the existing ones.
+		 *
+		 * @param {object} values filter keys to replace
+		 */
+		setFilterValues(values) {
+			Object.assign(this.filter, values)
+			this.persistCurrentFilter()
+		},
+		/**
+		 * Update a per-user setting of the open board locally, e.g. after storing it through the config API.
+		 *
+		 * @param {string} key setting name as in board.settings
+		 * @param {string|boolean|object[]} value new value
+		 */
+		setCurrentBoardSetting(key, value) {
+			if (this.currentBoard) {
+				this.currentBoard.settings = { ...this.currentBoard.settings, [key]: value }
+			}
 		},
 		toggleShowArchived(newState = undefined) {
 			this.showArchived = newState !== undefined ? newState : !this.showArchived
@@ -145,9 +266,16 @@ export const useBoardStore = defineStore('board', {
 			localStorage.setItem(`deck.viewMode.${this.currentBoard.id}`, mode)
 		},
 		async loadBoardById(boardId) {
-			this.filter = { tags: [], users: [], due: '', unassigned: false, completed: 'both' }
+			this.filter = restoredFilter(boardId)
 			this.setCurrentBoard(null)
 			const board = await apiClient.loadById(boardId)
+			// drop tags and users that are no longer on the board, they would hide every card
+			const labelIds = (board.labels ?? []).map((label) => label.id)
+			const userIds = (board.users ?? []).map((user) => user.uid)
+			this.filter.tags = this.filter.tags.filter((id) => labelIds.includes(id))
+			this.filter.excludedTags = this.filter.excludedTags.filter((id) => labelIds.includes(id))
+			this.filter.users = this.filter.users.filter((uid) => userIds.includes(uid))
+			this.filter.excludedUsers = this.filter.excludedUsers.filter((uid) => userIds.includes(uid))
 			this.setCurrentBoard(board)
 			this.setAssignableUsers(board.users)
 		},

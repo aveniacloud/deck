@@ -170,7 +170,8 @@ Returns an array of board items
         "lastModified": 1586269585,
         "settings": {
             "notify-due": "off",
-            "calendar": true
+            "calendar": true,
+            "savedFilters": []
         }
     }
 ]
@@ -1174,6 +1175,7 @@ Deck stores user and app configuration values globally and per board. The GET en
 | calendar | Boolean |
 | cardDetailsInModal | Boolean |
 | cardIdBadge | Boolean |
+| savedFilters | List of up to 25 saved board filters of the user, each `{"name": String (1-100 characters), "filter": Object}`. The filter object is stored as sent by the web interface; the whole list may not exceed 20000 bytes. Unlike the other board settings, which need edit permission on the board, read permission is enough |
 
 #### Example request
 

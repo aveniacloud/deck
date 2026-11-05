@@ -18,33 +18,41 @@ export const useCardStore = defineStore('card', {
 		cards: [],
 	}),
 	getters: {
+		/**
+		 * @param state
+		 * @return {(id: number, filter?: object) => Array} the cards of a stack that match the board filter
+		 * (or the given one, to try out a different filter) and the search
+		 */
 		cardsByStack(state) {
-			return (id) => state.cards.filter((card) => {
-				const { tags, users, due, unassigned, completed } = useBoardStore().filter
+			return (id, filter = useBoardStore().filter) => state.cards.filter((card) => {
+				const { tags, tagMatch, excludedTags = [], users, userMatch, excludedUsers = [], due, dueFrom, dueTo, dueIncludeOverdue, unassigned, completed } = filter
 				if (completed === 'open' && card.done !== null) {
 					return false
 				}
 				if (completed === 'completed' && !card.done) {
 					return false
 				}
-				let allTagsMatch = true
+				if (card.labels.some((l) => excludedTags.includes(l.id))) {
+					return false
+				}
+				if (card.assignedUsers?.some((u) => excludedUsers.includes(u.participant.uid))) {
+					return false
+				}
 
 				if (tags.length > 0) {
-					tags.forEach((tag) => {
-						if (card.labels.findIndex((l) => l.id === tag) === -1) {
-							allTagsMatch = false
-						}
-					})
-					if (!allTagsMatch) {
+					const hasTag = (tag) => card.labels.findIndex((l) => l.id === tag) !== -1
+					const tagsMatch = tagMatch === 'any' ? tags.some(hasTag) : tags.every(hasTag)
+					if (!tagsMatch) {
 						return false
 					}
 				}
 
 				if (users.length > 0) {
-					const anyUserMatch = !card?.assignedUsers
+					const isAssigned = (user) => card.assignedUsers.findIndex((u) => u.participant.uid === user) !== -1
+					const usersMatch = !card?.assignedUsers
 						? false
-						: users.some((user) => card.assignedUsers.findIndex((u) => u.participant.uid === user) !== -1)
-					if (!anyUserMatch) {
+						: (userMatch === 'all' ? users.every(isAssigned) : users.some(isAssigned))
+					if (!usersMatch) {
 						return false
 					}
 				}
@@ -61,11 +69,24 @@ export const useCardStore = defineStore('card', {
 						case 'overdue':
 							return (card.overdue === 3)
 						case 'dueToday':
-							return (card.overdue >= 2)
+							return (datediffHour > 0 && datediffHour <= 24 && card.duedate !== null)
 						case 'dueWeek':
-							return (datediffHour <= 7 * 24 && card.duedate !== null)
+							return (datediffHour > 0 && datediffHour <= 7 * 24 && card.duedate !== null)
 						case 'dueMonth':
-							return (datediffHour <= 30 * 24 && card.duedate !== null)
+							return (datediffHour > 0 && datediffHour <= 30 * 24 && card.duedate !== null)
+						case 'calendarWeek':
+						case 'calendarMonth':
+						case 'range': {
+							if (card.duedate === null) {
+								return false
+							}
+							// from and to are whole local days, both inclusive; an empty bound is open
+							const inRange = (!dueFrom || !moment(card.duedate).isBefore(moment(dueFrom, 'YYYY-MM-DD').startOf('day')))
+								&& (!dueTo || !moment(card.duedate).isAfter(moment(dueTo, 'YYYY-MM-DD').endOf('day')))
+							// overdue open cards are what a review of the period usually has to cover as well
+							const overdueOpen = dueIncludeOverdue && datediffHour < 0 && !card.done
+							return inRange || overdueOpen
+						}
 					}
 				}
 
@@ -138,7 +159,14 @@ export const useCardStore = defineStore('card', {
 									break
 							}
 
-							if (card.duedate === null || !hasMatch) {
+							// keywords are complete conditions, not dates to compare against
+							if (['overdue', 'today', 'week', 'month', 'none'].includes(query)) {
+								if (!hasMatch) {
+									return false
+								}
+								continue
+							}
+							if (card.duedate === null) {
 								return false
 							}
 							const comparator = query[0] + (query[1] === '=' ? '=' : '')
@@ -182,6 +210,21 @@ export const useCardStore = defineStore('card', {
 					return true
 				})
 				.sort((a, b) => a.order - b.order || a.createdAt - b.createdAt)
+		},
+		/**
+		 * @param state
+		 * @return {(boardId: number, options?: {filtered?: boolean, filter?: object}) => number} number of cards the
+		 * board shows, respecting whether archived cards are shown; with filtered: false, ignoring the filter and
+		 * search; with a filter, the number that filter would show
+		 */
+		cardCountOnBoard(state) {
+			return (boardId, { filtered = true, filter = undefined } = {}) => {
+				const showArchived = useBoardStore().showArchived
+				return useStackStore().stacksByBoard(boardId).reduce((count, stack) => {
+					const cards = filtered ? this.cardsByStack(stack.id, filter) : state.cards.filter((card) => card.stackId === stack.id)
+					return count + cards.filter((card) => !!card.archived === showArchived).length
+				}, 0)
+			}
 		},
 		cardById: (state) => (id) => {
 			return state.cards.find((card) => card.id === id)

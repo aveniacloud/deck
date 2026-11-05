@@ -38,11 +38,12 @@ class ConfigController extends OCSController {
 	#[NoAdminRequired]
 	#[NoCSRFRequired]
 	public function setValue(string $key, mixed $value): DataResponse|NotFoundResponse {
-		if (preg_match('/^board:(\d+):/', $key, $matches) === 1) {
+		if (preg_match('/^board:(\d+):(.*)$/', $key, $matches) === 1) {
+			// saved filters are personal, so seeing the board is enough to keep them
 			$this->permissionService->checkPermission(
 				$this->boardMapper,
 				(int)$matches[1],
-				Acl::PERMISSION_EDIT,
+				$matches[2] === 'savedFilters' ? Acl::PERMISSION_READ : Acl::PERMISSION_EDIT,
 			);
 		}
 

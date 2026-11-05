@@ -83,13 +83,20 @@
 					announcement: title is only the fallback description per HTML-AAM. -->
 				<span v-if="searchHint" id="deck-search-hint" class="hidden-visually">{{ searchHint }}</span>
 			</template>
+			<p v-if="board" class="hidden-visually" aria-live="polite">
+				{{ filterAnnouncement }}
+			</p>
 			<div v-if="board" class="board-action-buttons">
 				<div class="board-action-buttons__filter">
 					<NcPopover
+						:shown="filterOpen"
 						placement="bottom-end"
 						noFocusTrap
-						:aria-label="t('deck', 'Active filters')"
-						:name="t('deck', 'Active filters')">
+						:aria-label="t('deck', 'Filter cards')"
+						:name="t('deck', 'Filter cards')"
+						@update:shown="onFilterShown"
+						@afterShow="focusFilterOnOpen"
+						@afterHide="returnFocusOnClose">
 						<!-- We cannot use NcActions here as we can't style NcActionCheckbox labels dynamically -->
 						<template #trigger>
 							<NcButton
@@ -97,155 +104,74 @@
 								:title="t('deck', 'Apply filter')"
 								:aria-label="t('deck', 'Apply filter')"
 								class="filter-button"
-								:variant="isFilterActive ? 'primary' : 'tertiary'">
+								:variant="filterActive ? 'primary' : 'tertiary'">
 								<template #icon>
-									<FilterIcon v-if="isFilterActive" :size="20" decorative />
+									<FilterIcon v-if="filterActive" :size="20" decorative />
 									<FilterOffIcon v-else :size="20" decorative />
 								</template>
 							</NcButton>
 						</template>
 
 						<template #default>
-							<div class="filter">
-								<h3>{{ t('deck', 'Filter by tag') }}</h3>
-								<div v-for="label in labelsSorted" :key="label.id" class="filter--item">
-									<input
-										:id="label.id"
-										v-model="filter.tags"
-										type="checkbox"
-										class="checkbox"
-										:value="label.id"
-										@change="setFilter">
-									<label :for="label.id"><span class="label" :style="labelStyle(label)">{{ label.title }}</span></label>
-								</div>
-
-								<h3>{{ t('deck', 'Filter by assigned user') }}</h3>
-								<div class="filter--item">
-									<input
-										id="unassigned"
-										v-model="filter.unassigned"
-										type="checkbox"
-										class="checkbox"
-										value="unassigned"
-										@change="setFilter"
-										@click="beforeSetFilter">
-									<label for="unassigned">{{ t('deck', 'Unassigned') }}</label>
-								</div>
-								<div v-for="user in board.users" :key="user.uid" class="filter--item">
-									<input
-										:id="user.uid"
-										v-model="filter.users"
-										type="checkbox"
-										class="checkbox"
-										:value="user.uid"
-										@change="setFilter">
-									<label :for="user.uid"><NcAvatar
-										:user="user.uid"
-										:size="24"
-										:disableMenu="true"
-										:hideStatus="true" /> {{ user.displayname }}</label>
-								</div>
-
-								<h3>{{ t('deck', 'Filter by status') }}</h3>
-								<div class="filter--item">
-									<input
-										id="filter-option-both"
-										v-model="filter.completed"
-										type="radio"
-										class="radio"
-										value="both"
-										@change="setFilter"
-										@click="beforeSetFilter">
-									<label for="filter-option-both">{{ t('deck', 'Open and completed') }}</label>
-								</div>
-								<div class="filter--item">
-									<input
-										id="filter-option-open"
-										v-model="filter.completed"
-										type="radio"
-										class="radio"
-										value="open"
-										@change="setFilter"
-										@click="beforeSetFilter">
-									<label for="filter-option-open">{{ t('deck', 'Open') }}</label>
-								</div>
-
-								<div class="filter--item">
-									<input
-										id="filter-option-completed"
-										v-model="filter.completed"
-										type="radio"
-										class="radio"
-										value="completed"
-										@change="setFilter"
-										@click="beforeSetFilter">
-									<label for="filter-option-completed">{{ t('deck', 'Completed') }}</label>
-								</div>
-
-								<h3>{{ t('deck', 'Filter by due date') }}</h3>
-								<div class="filter--item">
-									<input
-										id="overdue"
-										v-model="filter.due"
-										type="radio"
-										class="radio"
-										value="overdue"
-										@change="setFilter"
-										@click="beforeSetFilter">
-									<label for="overdue">{{ t('deck', 'Overdue') }}</label>
-								</div>
-
-								<div class="filter--item">
-									<input
-										id="dueToday"
-										v-model="filter.due"
-										type="radio"
-										class="radio"
-										value="dueToday"
-										@change="setFilter"
-										@click="beforeSetFilter">
-									<label for="dueToday">{{ t('deck', 'Next 24 hours') }}</label>
-								</div>
-
-								<div class="filter--item">
-									<input
-										id="dueWeek"
-										v-model="filter.due"
-										type="radio"
-										class="radio"
-										value="dueWeek"
-										@change="setFilter"
-										@click="beforeSetFilter">
-									<label for="dueWeek">{{ t('deck', 'Next 7 days') }}</label>
-								</div>
-
-								<div class="filter--item">
-									<input
-										id="dueMonth"
-										v-model="filter.due"
-										type="radio"
-										class="radio"
-										value="dueMonth"
-										@change="setFilter"
-										@click="beforeSetFilter">
-									<label for="dueMonth">{{ t('deck', 'Next 30 days') }}</label>
-								</div>
-
-								<div class="filter--item">
-									<input
-										id="noDue"
-										v-model="filter.due"
-										type="radio"
-										class="radio"
-										value="noDue"
-										@change="setFilter"
-										@click="beforeSetFilter">
-									<label for="noDue">{{ t('deck', 'No due date') }}</label>
-								</div>
-
-								<NcButton :disabled="!isFilterActive" :wide="true" @click="clearFilter">
-									{{ t('deck', 'Clear filter') }}
-								</NcButton>
+							<div ref="filterContent" class="filter">
+								<template v-if="filterView === null">
+									<!-- the filter itself first, then what can be saved of it -->
+									<div class="filter--group">
+										<div class="filter--group-header">
+											<h3 class="filter--group-heading">
+												{{ t('deck', 'Filter by') }}
+											</h3>
+											<NcButton
+												v-if="filterActive"
+												variant="tertiary"
+												size="small"
+												data-cy-filter-clear
+												@click="clearFilterFromPopover">
+												{{ t('deck', 'Clear filter') }}
+											</NcButton>
+										</div>
+										<ul class="filter--facets">
+											<li v-for="facet in facets" :key="facet.id">
+												<button
+													type="button"
+													class="filter--facet"
+													:data-cy-facet="facet.id"
+													:aria-label="facet.value ? `${facet.label}: ${facet.value}` : facet.label"
+													:title="facet.value || null"
+													@click="openFacet(facet.id)">
+													<component :is="facet.icon" class="filter--facet-icon" :size="20" />
+													<span class="filter--facet-text">
+														<span>{{ facet.label }}</span>
+														<span v-if="facet.value" class="filter--facet-value">{{ facet.value }}</span>
+													</span>
+													<ChevronRightIcon class="filter--facet-icon" :size="20" />
+												</button>
+											</li>
+										</ul>
+									</div>
+									<SavedFilters
+										:board="board"
+										class="filter--group" />
+								</template>
+								<template v-else>
+									<NcButton
+										variant="tertiary"
+										alignment="start"
+										:wide="true"
+										data-cy-filter-back
+										@click="closeFacet">
+										<template #icon>
+											<ArrowLeftIcon :size="20" />
+										</template>
+										{{ t('deck', 'Back to filters') }}
+									</NcButton>
+									<FilterFacet
+										ref="facet"
+										class="filter--facet-view"
+										:board="board"
+										:facet="filterView"
+										@chosen="closeFacet" />
+								</template>
 							</div>
 						</template>
 					</NcPopover>
@@ -316,23 +242,31 @@
 <script>
 import { getCurrentUser } from '@nextcloud/auth'
 import { subscribe, unsubscribe } from '@nextcloud/event-bus'
-import { NcActionButton, NcActions, NcActionSeparator, NcAvatar, NcButton, NcModal, NcPopover, NcTextField } from '@nextcloud/vue'
+import { NcActionButton, NcActions, NcActionSeparator, NcButton, NcModal, NcPopover, NcTextField } from '@nextcloud/vue'
 import { vOnClickOutside } from '@vueuse/components'
 import { mapActions, mapState, mapWritableState } from 'pinia'
+import AccountMultipleIcon from 'vue-material-design-icons/AccountMultipleOutline.vue'
 import ArchiveIcon from 'vue-material-design-icons/ArchiveOutline.vue'
 import ArrowCollapseVerticalIcon from 'vue-material-design-icons/ArrowCollapseVertical.vue'
 import ArrowExpandVerticalIcon from 'vue-material-design-icons/ArrowExpandVertical.vue'
+import ArrowLeftIcon from 'vue-material-design-icons/ArrowLeft.vue'
+import CalendarIcon from 'vue-material-design-icons/CalendarOutline.vue'
 import ChartGanttIcon from 'vue-material-design-icons/ChartGantt.vue'
+import CheckCircleIcon from 'vue-material-design-icons/CheckCircleOutline.vue'
+import ChevronRightIcon from 'vue-material-design-icons/ChevronRight.vue'
 import FilterOffIcon from 'vue-material-design-icons/FilterOffOutline.vue'
 import FilterIcon from 'vue-material-design-icons/FilterOutline.vue'
 import ImageIcon from 'vue-material-design-icons/ImageMultipleOutline.vue'
 import TableColumnPlusAfter from 'vue-material-design-icons/TableColumnPlusAfter.vue'
+import TagIcon from 'vue-material-design-icons/TagOutline.vue'
 import ViewColumnIcon from 'vue-material-design-icons/ViewColumn.vue'
 import CreateNewCardCustomPicker from '../views/CreateNewCardCustomPicker.vue'
+import FilterFacet from './filter/FilterFacet.vue'
+import SavedFilters from './filter/SavedFilters.vue'
 import SessionList from './SessionList.vue'
-import labelStyle from '../mixins/labelStyle.js'
+import { facetValue, filterParts, isFilterActive } from '../helpers/boardFilter.js'
 import { isNotifyPushEnabled } from '../sessions.js'
-import { useBoardStore } from '../stores/board.js'
+import { emptyFilter, useBoardStore } from '../stores/board.js'
 import { useCardStore } from '../stores/card.js'
 import { useSettingsStore } from '../stores/settings.js'
 import { useStackStore } from '../stores/stack.js'
@@ -347,11 +281,12 @@ export default {
 		NcButton,
 		NcPopover,
 		NcTextField,
-		NcAvatar,
 		ArchiveIcon,
 		ImageIcon,
 		FilterIcon,
 		FilterOffIcon,
+		ArrowLeftIcon,
+		ChevronRightIcon,
 		ArrowCollapseVerticalIcon,
 		ArrowExpandVerticalIcon,
 		ViewColumnIcon,
@@ -359,13 +294,14 @@ export default {
 		NcActionSeparator,
 		TableColumnPlusAfter,
 		SessionList,
+		FilterFacet,
+		SavedFilters,
 	},
 
 	directives: {
 		vOnClickOutside,
 	},
 
-	mixins: [labelStyle],
 	props: {
 		board: {
 			type: Object,
@@ -401,16 +337,21 @@ export default {
 			newStackTitle: '',
 			stack: '',
 			isAddStackVisible: false,
-			filter: { tags: [], users: [], due: '', unassigned: false, completed: 'both' },
 			showAddCardModal: false,
+			// null for the overview, otherwise the facet shown: 'tags', 'users', 'status' or 'due'
+			filterView: null,
+			filterOpen: false,
+			filterAnnouncement: '',
+			announceTimeout: null,
+			skipAnnouncement: false,
 			defaultPageTitle: false,
 			isNotifyPushEnabled: isNotifyPushEnabled(),
 		}
 	},
 
 	computed: {
+		...mapState(useBoardStore, ['filter']),
 		...mapState(useBoardStore, [
-			'canEdit',
 			'canManage',
 			'viewMode',
 			'showArchived',
@@ -439,12 +380,27 @@ export default {
 			}
 		},
 
-		isFilterActive() {
-			return this.filter.tags.length !== 0 || this.filter.users.length !== 0 || this.filter.due !== '' || this.filter.completed !== 'both'
+		visibleCardCount() {
+			return useCardStore().cardCountOnBoard(this.board.id)
 		},
 
-		labelsSorted() {
-			return [...this.board.labels].sort((a, b) => (a.title < b.title) ? -1 : 1)
+		/**
+		 * The overview rows of the popover, one per facet, each with what it currently filters.
+		 *
+		 * @return {Array<{id: string, label: string, icon: object, value: string}>}
+		 */
+		facets() {
+			const parts = filterParts(this.filter, this.board)
+			return [
+				{ id: 'tags', label: t('deck', 'Tags'), icon: TagIcon },
+				{ id: 'users', label: t('deck', 'Assigned to'), icon: AccountMultipleIcon },
+				{ id: 'status', label: t('deck', 'Status'), icon: CheckCircleIcon },
+				{ id: 'due', label: t('deck', 'Due date'), icon: CalendarIcon },
+			].map((facet) => ({ ...facet, value: facetValue(parts, facet.id) }))
+		},
+
+		filterActive() {
+			return isFilterActive(this.filter)
 		},
 
 		presentUsers() {
@@ -461,7 +417,24 @@ export default {
 		// two properties we actually care about is enough - and avoids
 		// traversing labels, acl and users on every unrelated board mutation.
 		'board.id': function() {
-			this.clearFilter()
+			// opening another board brings its own (possibly restored) filter; not a result worth announcing
+			this.skipAnnouncement = true
+			this.filterView = null
+		},
+
+		filter: {
+			deep: true,
+			handler() {
+				if (this.skipAnnouncement) {
+					this.skipAnnouncement = false
+					return
+				}
+				clearTimeout(this.announceTimeout)
+				this.filterAnnouncement = ''
+				this.announceTimeout = setTimeout(() => {
+					this.filterAnnouncement = n('deck', '%n card shown', '%n cards shown', this.visibleCardCount)
+				}, 500)
+			},
 		},
 
 		pageTitle: {
@@ -477,20 +450,23 @@ export default {
 	beforeMount() {
 		subscribe('deck:board:show-new-card', this.clickShowAddCardModel)
 		subscribe('deck:board:toggle-filter-popover', this.triggerOpenFilters)
+		subscribe('deck:board:edit-filter', this.editFilter)
 		subscribe('deck:board:clear-filter', this.triggerClearFilter)
 		subscribe('deck:board:toggle-filter-by-me', this.triggerFilterByMe)
 	},
 
 	beforeUnmount() {
+		clearTimeout(this.announceTimeout)
 		unsubscribe('deck:board:show-new-card', this.clickShowAddCardModel)
 		unsubscribe('deck:board:toggle-filter-popover', this.triggerOpenFilters)
+		unsubscribe('deck:board:edit-filter', this.editFilter)
 		unsubscribe('deck:board:clear-filter', this.triggerClearFilter)
 		unsubscribe('deck:board:toggle-filter-by-me', this.triggerFilterByMe)
 		this.setPageTitle('')
 	},
 
 	methods: {
-		...mapActions(useBoardStore, { setViewMode: 'setViewMode', toggleShowArchived: 'toggleShowArchived', setFilterInStore: 'setFilterInStore' }),
+		...mapActions(useBoardStore, ['setViewMode', 'toggleShowArchived', 'setFilterValues']),
 		...mapActions(useStackStore, ['createStack']),
 		...mapActions(useSettingsStore, {
 			setSearchQuery: 'setSearchQuery',
@@ -500,26 +476,86 @@ export default {
 			toggleCardCover: 'toggleShowCardCover',
 		}),
 
-		beforeSetFilter(e) {
-			if (this.filter.due === e.target.value) {
-				this.filter.due = ''
-				this.setFilterInStore({ ...this.filter })
-			}
-			if (e.target.value === 'unassigned') {
-				this.filter.users = []
-				this.setFilterInStore({ ...this.filter })
-			} else {
-				this.filter.completed = 'both'
-				this.setFilterInStore({ ...this.filter })
-			}
-			this.setFilterInStore({ ...this.filter })
+		/**
+		 * Move focus to the index-th match of a selector inside the filter popover, after the next render.
+		 *
+		 * @param {string} selector elements to choose from, in document order
+		 * @param {number} index position to focus, clamped to the last match
+		 */
+		focusInFilter(selector, index = 0) {
+			this.$nextTick(() => {
+				const elements = this.$refs.filterContent?.querySelectorAll(selector) ?? []
+				elements[Math.min(index, elements.length - 1)]?.focus()
+			})
 		},
 
-		setFilter() {
-			if (this.filter.users.length > 0) {
-				this.filter.unassigned = false
+		focusFirstFilterControl() {
+			this.focusInFilter('.filter--saved-apply, .filter--facet')
+		},
+
+		/**
+		 * Show one facet's controls instead of the overview, like the narrow filter menu of Files.
+		 *
+		 * @param {string} facet 'tags', 'users', 'status' or 'due'
+		 */
+		openFacet(facet) {
+			this.filterView = facet
+			this.$nextTick(() => this.$refs.facet?.focusStart())
+		},
+
+		/**
+		 * Back to the overview, also after a choice that completes a facet, like a status.
+		 */
+		closeFacet() {
+			const facet = this.filterView
+			this.filterView = null
+			this.focusInFilter(`[data-cy-facet="${facet}"]`)
+		},
+
+		focusFilterOnOpen() {
+			// the popover reports being shown only after its transition; by then the user may already be working in it
+			if (this.$refs.filterContent?.contains(document.activeElement)) {
+				return
 			}
-			this.$nextTick(() => this.setFilterInStore({ ...this.filter }))
+			if (this.filterView) {
+				this.$nextTick(() => this.$refs.facet?.focusStart())
+			} else {
+				this.focusFirstFilterControl()
+			}
+		},
+
+		/**
+		 * @param {boolean} shown whether the popover's own button opened or something closed it
+		 */
+		onFilterShown(shown) {
+			// its button always starts at the overview, also when the last closing has not finished yet
+			if (shown && !this.filterOpen) {
+				this.filterView = null
+			}
+			this.filterOpen = shown
+		},
+
+		returnFocusOnClose() {
+			// a chip may have opened the menu again while it was closing
+			if (this.filterOpen) {
+				return
+			}
+			// the next opening starts at the overview again
+			this.filterView = null
+			// without a focus trap the popover does not return focus itself, e.g. after Escape
+			const active = document.activeElement
+			if (!active || active === document.body || this.$refs.filterContent?.contains(active)) {
+				// back to the chip the menu was opened from, while it is still there
+				const target = this.returnFocus?.isConnected ? this.returnFocus : this.$refs.filterPopover?.$el
+				target?.focus()
+			}
+			this.returnFocus = null
+		},
+
+		clearFilterFromPopover() {
+			this.clearFilter()
+			// the clear button goes away, so keep focus in the popover
+			this.focusFirstFilterControl()
 		},
 
 		clearSearchQuery() {
@@ -567,9 +603,7 @@ export default {
 		},
 
 		clearFilter() {
-			const filterReset = { tags: [], users: [], due: '', unassigned: false, completed: 'both' }
-			this.setFilterInStore({ ...filterReset })
-			this.filter = filterReset
+			this.setFilterValues(emptyFilter(this.board?.id ?? null))
 		},
 
 		clickShowAddCardModel() {
@@ -601,19 +635,44 @@ export default {
 		},
 
 		triggerOpenFilters() {
-			this.$refs.filterPopover.$el.click()
+			this.filterOpen = !this.filterOpen
+		},
+
+		/**
+		 * Open the filter menu from a chip below the header, at the chip's facet.
+		 *
+		 * @param {object} request what to open
+		 * @param {string|null} request.facet 'tags', 'users', 'status', 'due' or null for the overview
+		 * @param {HTMLElement} request.returnFocus where focus goes back to when the menu closes
+		 */
+		editFilter({ facet, returnFocus }) {
+			this.returnFocus = returnFocus
+			this.filterView = facet
+			if (this.filterOpen) {
+				this.focusFilterOnOpen()
+			} else {
+				this.filterOpen = true
+			}
 		},
 
 		triggerClearFilter() {
 			this.clearFilter()
 		},
 
+		/**
+		 * Add or remove the current user in the user filter, keeping the rest of the filter: with
+		 * filters kept across visits, clearing everything would be a surprise.
+		 */
 		triggerFilterByMe() {
-			if (this.isFilterActive) {
-				this.clearFilter()
+			const uid = getCurrentUser().uid
+			if (this.filter.users.includes(uid)) {
+				this.setFilterValues({ users: this.filter.users.filter((user) => user !== uid) })
 			} else {
-				this.filter.users = [getCurrentUser().uid]
-				this.setFilter()
+				this.setFilterValues({
+					users: [...this.filter.users, uid],
+					unassigned: false,
+					excludedUsers: this.filter.excludedUsers.filter((user) => user !== uid),
+				})
 			}
 		},
 	},
@@ -717,33 +776,99 @@ export default {
 		}
 	}
 
-	.filter--item {
-		input + label {
-			display: block;
-			padding: var(--default-grid-baseline) 0;
-			.avatardiv {
-				vertical-align: middle;
-				margin-bottom: 2px;
-				margin-inline-end: 3px;
-			}
-			.label {
-				padding: 5px;
-				border-radius: 3px;
-			}
-		}
-	}
-
 	.filter {
-		width: 240px;
+		display: flex;
+		flex-direction: column;
+		width: 280px;
 		max-height: calc(100vh - 150px);
 		position: relative;
 		overflow: auto;
 		padding: 8px;
 	}
 
-	.filter h3 {
-		margin-top: 0px;
-		margin-bottom: 5px;
+	// the filter with its facets, then the saved filters, apart from each other
+	.filter--group {
+		display: flex;
+		flex-direction: column;
+		gap: var(--default-grid-baseline);
+
+		& + & {
+			margin-top: calc(3 * var(--default-grid-baseline));
+			padding-top: calc(3 * var(--default-grid-baseline));
+			border-top: 1px solid var(--color-border);
+		}
+	}
+
+	.filter--group-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: calc(2 * var(--default-grid-baseline));
+	}
+
+	.filter--group-heading {
+		margin: 0;
+		font-size: var(--default-font-size);
+		font-weight: bold;
+		line-height: var(--default-clickable-area);
+	}
+
+	.filter--facets {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	button.filter--facet {
+		display: flex;
+		align-items: center;
+		gap: calc(2 * var(--default-grid-baseline));
+		width: 100%;
+		min-height: var(--default-clickable-area);
+		margin: 0;
+		padding: var(--default-grid-baseline) calc(2 * var(--default-grid-baseline));
+		border: none;
+		border-radius: var(--border-radius-element, var(--border-radius-large));
+		background: transparent;
+		color: var(--color-main-text);
+		font-weight: normal;
+		text-align: start;
+		cursor: pointer;
+
+		&:hover {
+			background: var(--color-background-hover);
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--color-main-text);
+			outline-offset: -2px;
+		}
+	}
+
+	.filter--facet-icon {
+		flex-shrink: 0;
+	}
+
+	.filter--facet-text {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		min-width: 0;
+
+		> * {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+	}
+
+	.filter--facet-value {
+		color: var(--color-text-maxcontrast);
+		font-size: var(--font-size-small, 13px);
+	}
+
+	.filter--facet-view {
+		margin-top: var(--default-grid-baseline);
 	}
 
 	.filter-button {
